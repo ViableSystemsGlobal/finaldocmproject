@@ -1,16 +1,20 @@
 {
   "name": "docm-cics",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Complete Integrated Church System",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
-  "keywords": [],
+  "keywords": ["church", "management", "system"],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.11.0",
   "devDependencies": {
-    "turbo": "^2.5.3"
+    "turbo": "^2.5.3",
+    "prettier": "^3.2.5"
   }
 }
