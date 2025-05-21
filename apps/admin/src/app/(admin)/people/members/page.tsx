@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
 import { FollowUpModal } from '@/components/FollowUpModal'
+import { safeFormatDate } from '@/lib/utils'
 
 // Mock the Dialog components for now
 const Dialog = ({ open, onOpenChange, children }: any) => (
@@ -99,6 +100,8 @@ type Member = {
     phone: string
     profile_image?: string
   }
+  is_serving?: boolean
+  is_app_user?: boolean
 }
 
 type MemberCountMetrics = {
@@ -108,6 +111,39 @@ type MemberCountMetrics = {
   appUsers: number
   loading: boolean
 }
+
+// ClientOnly component for components that should only render on client
+const ClientOnly = ({ children }: { children: ReactNode }) => {
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  
+  return mounted ? <>{children}</> : null
+}
+
+// Component for formatting joined date safely
+const FormattedJoinedDate = ({ date }: { date: string }) => {
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    // Return a simple ISO date format for server rendering
+    // This ensures the same output on both server and client initial render
+    return <>{date.split('T')[0]}</>;
+  }
+  
+  // Once mounted on client, we can use the locale-specific formatting
+  return (
+    <>
+      {new Date(date).toLocaleDateString()} ({formatTimeAgo(new Date(date))})
+    </>
+  );
+};
 
 export default function MembersPage() {
   const router = useRouter()
@@ -374,19 +410,35 @@ export default function MembersPage() {
                   <TableCell className="py-3">{member.contacts.email}</TableCell>
                   <TableCell className="py-3">{member.contacts.phone}</TableCell>
                   <TableCell className="py-3">
-                    {new Date(member.joined_at).toLocaleDateString()} ({formatTimeAgo(new Date(member.joined_at))})
+                    <FormattedJoinedDate date={member.joined_at} />
                   </TableCell>
                   <TableCell className="py-3">
-                    <Badge variant={Math.random() > 0.5 ? "success" : "secondary"}>
-                      {Math.random() > 0.5 ? <Check className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
-                      {Math.random() > 0.5 ? "Yes" : "No"}
-                    </Badge>
+                    <ClientOnly>
+                      {(() => {
+                        // Generate this value only on client-side
+                        const isServing = member.is_serving ?? Math.random() > 0.5;
+                        return (
+                          <Badge variant={isServing ? "success" : "secondary"}>
+                            {isServing ? <Check className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
+                            {isServing ? "Yes" : "No"}
+                          </Badge>
+                        );
+                      })()}
+                    </ClientOnly>
                   </TableCell>
                   <TableCell className="py-3">
-                    <Badge variant={Math.random() > 0.5 ? "success" : "secondary"}>
-                      {Math.random() > 0.5 ? <Smartphone className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
-                      {Math.random() > 0.5 ? "Yes" : "No"}
-                    </Badge>
+                    <ClientOnly>
+                      {(() => {
+                        // Generate this value only on client-side
+                        const isAppUser = member.is_app_user ?? Math.random() > 0.5;
+                        return (
+                          <Badge variant={isAppUser ? "success" : "secondary"}>
+                            {isAppUser ? <Smartphone className="h-3 w-3 mr-1" /> : <X className="h-3 w-3 mr-1" />}
+                            {isAppUser ? "Yes" : "No"}
+                          </Badge>
+                        );
+                      })()}
+                    </ClientOnly>
                   </TableCell>
                   <TableCell className="text-right py-3 space-x-2">
                     <Button variant="ghost" size="sm" asChild>

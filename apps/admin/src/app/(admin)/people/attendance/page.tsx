@@ -322,21 +322,24 @@ export default function AttendancePage() {
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard
           title="Total Check-Ins"
-          value={metrics.loading ? '...' : metrics.totalCheckIns.toString()}
+          value={metrics.loading ? 0 : metrics.totalCheckIns}
           icon={<Check className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
         <MetricCard
           title="Unique Attendees"
-          value={metrics.loading ? '...' : metrics.uniqueAttendees.toString()}
+          value={metrics.loading ? 0 : metrics.uniqueAttendees}
           icon={<Users className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
         <MetricCard
           title="Avg Attendance/Event"
-          value={metrics.loading ? '...' : metrics.avgAttendance.toString()}
+          value={metrics.loading ? 0 : metrics.avgAttendance}
           icon={<CalendarDays className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
       </div>
 
@@ -524,19 +527,19 @@ export default function AttendancePage() {
                                 ))}
                               </TableBody>
                             </Table>
-                            
-                            {/* Show View All link if there are more than 3 records */}
-                            {eventAttendance.length > 3 && (
-                              <div className="flex justify-center py-2 bg-muted/20 border-t">
-                                <Link 
-                                  href={`/people/attendance/event/${event.id}`}
-                                  className="text-amber-600 hover:text-amber-700 hover:underline font-medium text-sm py-1 flex items-center"
-                                >
-                                  <Eye className="h-3.5 w-3.5 mr-1" />
-                                  View all {eventAttendance.length} attendees
-                                </Link>
-                              </div>
-                            )}
+
+                            {/* Always show a link to the event detail page */}
+                            <div className="flex justify-center py-2 bg-muted/20 border-t">
+                              <Link 
+                                href={`/people/attendance/event/${event.id}`}
+                                className="text-amber-600 hover:text-amber-700 hover:underline font-medium text-sm py-1 flex items-center"
+                              >
+                                <Eye className="h-3.5 w-3.5 mr-1" />
+                                {eventAttendance.length > 3 
+                                  ? `View all ${eventAttendance.length} attendees` 
+                                  : `View event details (${eventAttendance.length} attendees)`}
+                              </Link>
+                            </div>
                           </>
                         )}
                       </CardContent>

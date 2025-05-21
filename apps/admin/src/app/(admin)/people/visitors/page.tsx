@@ -295,15 +295,18 @@ export default function VisitorsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard 
           title="Total Visitors" 
-          value={metrics.loading ? '...' : metrics.total.toString()}
+          value={metrics.loading ? 0 : metrics.total}
+          formatter="number"
         />
         <MetricCard 
           title="New Visitors This Month" 
-          value={metrics.loading ? '...' : metrics.newThisMonth.toString()}
+          value={metrics.loading ? 0 : metrics.newThisMonth}
+          formatter="number"
         />
         <MetricCard 
           title="Saved Visitors" 
-          value={metrics.loading ? '...' : metrics.savedCount.toString()}
+          value={metrics.loading ? 0 : metrics.savedCount}
+          formatter="number"
         />
       </div>
       

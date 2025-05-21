@@ -276,21 +276,24 @@ export default function GroupsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard 
           title="Total Groups" 
-          value={metrics.loading ? '...' : metrics.total.toString()}
+          value={metrics.loading ? 0 : metrics.total}
           icon={<LayoutGrid className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
         <MetricCard 
           title="Active Groups" 
-          value={metrics.loading ? '...' : metrics.active.toString()}
+          value={metrics.loading ? 0 : metrics.active}
           icon={<Users className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
         <MetricCard 
           title="Total Group Members" 
-          value={metrics.loading ? '...' : metrics.totalMembers.toString()}
+          value={metrics.loading ? 0 : metrics.totalMembers}
           icon={<Users className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
       </div>
       

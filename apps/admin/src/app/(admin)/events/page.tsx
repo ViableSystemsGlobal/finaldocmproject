@@ -264,21 +264,24 @@ export default function EventsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard 
           title="Total Events" 
-          value={metrics.loading ? '...' : metrics.total.toString()}
+          value={metrics.loading ? 0 : metrics.total}
           icon={<Calendar className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
         <MetricCard 
           title="Recurring Events" 
-          value={metrics.loading ? '...' : metrics.recurring.toString()}
+          value={metrics.loading ? 0 : metrics.recurring}
           icon={<CalendarClock className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
         <MetricCard 
           title="Today's Events" 
-          value={metrics.loading ? '...' : metrics.today.toString()}
+          value={metrics.loading ? 0 : metrics.today}
           icon={<CalendarDays className="h-6 w-6" />}
           loading={metrics.loading}
+          formatter="number"
         />
       </div>
       

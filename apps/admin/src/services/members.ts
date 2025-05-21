@@ -130,4 +130,49 @@ export function getContactsNotMembers() {
     .select('id, first_name, last_name, email, profile_image')
     .order('first_name', { ascending: true })
     .limit(100);
+}
+
+// Function to get contacts not in a specific group
+export async function getContactsNotInGroup(groupId: string, searchQuery?: string) {
+  try {
+    // First get all contacts
+    const { data: contacts, error: contactsError } = await supabase
+      .from('contacts')
+      .select('id, first_name, last_name, email, profile_image')
+      .order('first_name', { ascending: true });
+    
+    if (contactsError) throw contactsError;
+    
+    // Then get all members of the specified group
+    const { data: members, error: membersError } = await supabase
+      .from('group_memberships')
+      .select('contact_id')
+      .eq('group_id', groupId);
+    
+    if (membersError) throw membersError;
+    
+    // Extract contact IDs that are already members
+    const memberContactIds = members?.map(member => member.contact_id) || [];
+    
+    // Filter out contacts that are already members of this group
+    const filteredContacts = contacts?.filter(contact => 
+      !memberContactIds.includes(contact.id)
+    ) || [];
+    
+    // If search query provided, filter by name or email
+    let result = filteredContacts;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = filteredContacts.filter(contact => {
+        const fullName = `${contact.first_name || ''} ${contact.last_name || ''}`.toLowerCase();
+        const email = (contact.email || '').toLowerCase();
+        return fullName.includes(query) || email.includes(query);
+      });
+    }
+    
+    return { data: result, error: null };
+  } catch (error) {
+    console.error('Error fetching contacts not in group:', error);
+    return { data: [], error };
+  }
 } 

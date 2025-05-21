@@ -452,4 +452,20 @@ export async function testDirectUpload(): Promise<string> {
     console.error('Test upload failed:', err);
     throw err;
   }
+}
+
+// Get contacts for leader selection
+export function getContactsForLeaderSelection(searchQuery?: string) {
+  const query = supabase
+    .from('contacts')
+    .select('id, first_name, last_name, email')
+    .order('first_name', { ascending: true })
+    .limit(10);
+    
+  if (searchQuery) {
+    const searchTerm = searchQuery.toLowerCase();
+    query.or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`);
+  }
+  
+  return query;
 } 

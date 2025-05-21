@@ -81,8 +81,10 @@ export default function EventAttendancePage() {
         
         if (attendanceError) throw attendanceError
         
-        setAttendanceRecords(attendanceData || [])
-        setTotalPages(Math.ceil((attendanceData?.length || 0) / ITEMS_PER_PAGE))
+        // Type assertion to handle the API response structure
+        const typedAttendanceData = attendanceData as unknown as AttendanceRecord[]
+        setAttendanceRecords(typedAttendanceData || [])
+        setTotalPages(Math.ceil((typedAttendanceData?.length || 0) / ITEMS_PER_PAGE))
       } catch (err) {
         console.error('Failed to load event data:', err)
         toast({
