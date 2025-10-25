@@ -60,24 +60,30 @@ export default function ImportExportButtons({
     let columns: string[] = []
     
     if (entityName.toLowerCase() === 'contacts') {
-      // Sample data for contacts template
+      // Sample data for contacts template with ALL current form fields
       templateData = [
         {
           first_name: 'John',
           last_name: 'Doe',
           email: 'john.doe@example.com',
-          phone: '(555) 123-4567',
-          lifecycle: 'lead'
+          phone: '+1234567890',
+          lifecycle: 'soul',
+          date_of_birth: '1990-01-15',
+          location: 'Denver, CO',
+          occupation: 'Software Engineer'
         },
         {
           first_name: 'Jane',
           last_name: 'Smith',
           email: 'jane.smith@example.com',
-          phone: '(555) 987-6543',
-          lifecycle: 'member'
+          phone: '+9876543210',
+          lifecycle: 'member',
+          date_of_birth: '1985-06-20',
+          location: 'Aurora, CO',
+          occupation: 'Teacher'
         }
       ]
-      columns = ['first_name', 'last_name', 'email', 'phone', 'lifecycle']
+      columns = ['first_name', 'last_name', 'email', 'phone', 'lifecycle', 'date_of_birth', 'location', 'occupation']
     } else if (entityName.toLowerCase() === 'members') {
       // Sample data for members template
       templateData = [
@@ -156,6 +162,19 @@ export default function ImportExportButtons({
                 Supported formats: Excel (.xlsx, .xls) or CSV
               </p>
             </div>
+            
+            {entityName.toLowerCase() === 'contacts' && (
+              <div className="space-y-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">📋 Template Info:</p>
+                <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 ml-4 list-disc">
+                  <li><strong>Required:</strong> first_name, last_name, email</li>
+                  <li><strong>Optional:</strong> phone, date_of_birth, location, occupation</li>
+                  <li><strong>Lifecycle values:</strong> soul, contact, visitor, member, inactive (default: soul)</li>
+                  <li><strong>Date format:</strong> YYYY-MM-DD (e.g., 1990-01-15)</li>
+                  <li><strong>Alt column names:</strong> firstName, lastName, dateOfBirth, dob, city, address, job, profession</li>
+                </ul>
+              </div>
+            )}
             
             <div className="flex items-center space-x-2">
               <Button 

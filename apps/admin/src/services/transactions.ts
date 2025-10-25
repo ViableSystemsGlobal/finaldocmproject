@@ -10,6 +10,9 @@ export type Transaction = {
   transacted_at: string;
   notes: string;
   created_at: string;
+  stripe_payment_intent_id?: string | null;
+  stripe_charge_id?: string | null;
+  payment_status?: string | null;
   contacts?: {
     first_name: string | null;
     last_name: string | null;
@@ -19,19 +22,19 @@ export type Transaction = {
 export function fetchTransactions() {
   return supabase
     .from('transactions')
-    .select('id, contact_id, amount, currency, category, payment_method, transacted_at, notes, created_at, contacts(id, first_name, last_name)')
+    .select('id, contact_id, amount, currency, category, payment_method, transacted_at, notes, created_at, stripe_payment_intent_id, stripe_charge_id, payment_status, contacts(id, first_name, last_name)')
     .order('transacted_at', { ascending: false });
 }
 
 export function fetchTransaction(id: string) {
   return supabase
     .from('transactions')
-    .select('id, contact_id, amount, currency, category, payment_method, transacted_at, notes, created_at, contacts(id, first_name, last_name)')
+    .select('id, contact_id, amount, currency, category, payment_method, transacted_at, notes, created_at, stripe_payment_intent_id, stripe_charge_id, payment_status, contacts(id, first_name, last_name)')
     .eq('id', id)
     .single();
 }
 
-export function createTransaction(data: Partial<Transaction>) {
+export function createTransaction(data: any) {
   return supabase.from('transactions').insert(data);
 }
 
@@ -76,7 +79,7 @@ export async function getTotalTransactionsYTD() {
 export function fetchRecentTransactions(limit = 5) {
   return supabase
     .from('transactions')
-    .select('id, contact_id, amount, currency, category, payment_method, transacted_at, notes, created_at, contacts(id, first_name, last_name)')
+    .select('id, contact_id, amount, currency, category, payment_method, transacted_at, notes, created_at, stripe_payment_intent_id, stripe_charge_id, payment_status, contacts(id, first_name, last_name)')
     .order('transacted_at', { ascending: false })
     .limit(limit);
 }

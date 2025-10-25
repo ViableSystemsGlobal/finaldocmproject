@@ -3,6 +3,7 @@ import React, { useState, useContext } from 'react'
 interface CalendarProps {
   mode?: 'single' | 'range' | 'multiple'
   selected?: Date | Date[] | undefined
+  onSelect?: ((date: Date | undefined) => void) | undefined
   onSelectDate?: (date: Date) => void
   initialFocus?: boolean
   disableFutureDates?: boolean
@@ -12,6 +13,7 @@ interface CalendarProps {
 export function Calendar({
   mode = 'single',
   selected,
+  onSelect,
   onSelectDate,
   initialFocus,
   disableFutureDates = false,
@@ -128,28 +130,37 @@ export function Calendar({
   )
   
   // Handler for day selection
-  const handleDayClick = (day: number) => {
+  const handleDayClick = (day: number, e?: React.MouseEvent) => {
+    // Prevent event bubbling if event is provided
+    if (e) e.preventDefault();
+    
     // Don't allow selecting future dates if disabled
-    if (isFutureDate(day)) return
+    if (isFutureDate(day)) return;
     
     // Create a proper date object with the displayed month and year
-    const date = new Date(currentYear, currentMonth, day)
-    if (onSelectDate) {
-      onSelectDate(date)
-      
-      // Find the popover context and close it
-      const popoverContent = document.querySelector('.popover-content')
-      if (popoverContent) {
-        // Use a slight delay to allow the date to be processed
-        setTimeout(() => {
-          // Get the closest element with class "popover-trigger" and click it to close
-          const trigger = document.querySelector('.popover-trigger')
-          if (trigger) {
-            (trigger as HTMLElement).click()
-          }
-        }, 100)
-      }
+    const date = new Date(currentYear, currentMonth, day);
+    
+    // Call onSelect if provided (standard React DayPicker API)
+    if (onSelect) {
+      onSelect(date);
     }
+    
+    // Call onSelectDate if provided (legacy API)
+    if (onSelectDate) {
+      onSelectDate(date);
+    }
+    
+    // Auto-close popover by dispatching an escape key event
+    setTimeout(() => {
+      const escapeEvent = new KeyboardEvent('keydown', {
+        key: 'Escape',
+        code: 'Escape',
+        keyCode: 27,
+        which: 27,
+        bubbles: true
+      });
+      document.dispatchEvent(escapeEvent);
+    }, 100);
   }
   
   return (
@@ -255,7 +266,7 @@ export function Calendar({
                       : 'hover:bg-gray-100'
                   }
                 `}
-                onClick={() => handleDayClick(day)}
+                onClick={(e) => handleDayClick(day, e)}
               >
                 {day}
               </button>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, Save, CheckCircle, CalendarIcon, Clock } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, CheckCircle, CalendarIcon, Clock, Users, FileText, User, UserCheck, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -33,19 +33,19 @@ import { useNextParams } from '@/lib/nextParams'
 
 export default function FollowUpDetailPage({ params }: { params: { id: string } }) {
   // Safe way to handle params that works with both current and future Next.js
-  const { id } = useNextParams(params)
+  const unwrappedParams = useNextParams(params)
+  const id = unwrappedParams.id as string
   
   const router = useRouter()
   const searchParams = useSearchParams()
-  const isEditMode = searchParams.get('edit') === 'true'
+  const isEditMode = searchParams.get('mode') === 'edit'
   
-  // States
+  // State
   const [followUp, setFollowUp] = useState<FollowUp | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [completing, setCompleting] = useState(false)
   
-  // Form states
+  // Form state
   const [contactId, setContactId] = useState('')
   const [followUpType, setFollowUpType] = useState('')
   const [status, setStatus] = useState('')
@@ -53,9 +53,9 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
   const [assignedTo, setAssignedTo] = useState('')
   const [notes, setNotes] = useState('')
   
-  // Get users and contacts
-  const { users, isLoading: usersLoading } = useUsers()
-  const { contacts, isLoading: contactsLoading } = useContacts()
+  // Use the custom hooks
+  const { users, isLoading: isUsersLoading } = useUsers()
+  const { contacts, isLoading: isContactsLoading } = useContacts()
   
   // Follow-up types
   const followUpTypes = [
@@ -67,9 +67,6 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
     'Absent member',
     'Other'
   ]
-  
-  // Statuses
-  const statuses = ['pending', 'completed']
 
   // Fetch follow-up data
   useEffect(() => {
@@ -147,10 +144,12 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
     }
   }
   
-  // Handle complete
-  const handleComplete = async () => {
+  // Handle mark as complete
+  const handleMarkComplete = async () => {
+    if (!followUp) return
+    
     try {
-      setCompleting(true)
+      setSaving(true)
       
       const { error } = await markFollowUpComplete(id)
       
@@ -163,213 +162,311 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
       
       // Refresh data
       const { data: refreshedData } = await fetchFollowUp(id)
-      if (refreshedData) {
-        setFollowUp(refreshedData)
-        setStatus(refreshedData.status)
-      }
+      if (refreshedData) setFollowUp(refreshedData)
+      
     } catch (err) {
-      console.error('Error completing follow-up:', err)
+      console.error('Error marking follow-up complete:', err)
       toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to mark follow-up as complete'
       })
     } finally {
-      setCompleting(false)
+      setSaving(false)
     }
   }
 
-  // Format date for display
-  const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' }
-    return new Date(dateString).toLocaleDateString(undefined, options)
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-orange-500 mx-auto mb-4" />
+          <p className="text-lg text-slate-600">Loading follow-up details...</p>
+        </div>
+      </div>
+    )
   }
-  
-  // Get contact name
-  const getContactName = (id: string) => {
-    const contact = contacts.find(c => c.id === id)
-    return contact 
-      ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim() 
-      : 'Unknown Contact'
+
+  if (!followUp) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <UserCheck className="h-16 w-16 text-slate-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Follow-up not found</h2>
+          <p className="text-slate-600 mb-6">The follow-up you're looking for doesn't exist.</p>
+          <Button asChild>
+            <Link href="/people/outreach/follow-ups">Back to Follow-ups</Link>
+          </Button>
+        </div>
+      </div>
+    )
   }
-  
-  // Get user name
-  const getUserName = (id: string | null | undefined) => {
-    if (!id) return 'Unassigned'
-    const user = users.find(u => u.id === id)
-    return user ? (user.name || user.email) : 'Unknown User'
-  }
-  
-  const isLoading = loading || usersLoading || contactsLoading
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <Button variant="ghost" size="icon" asChild className="mr-4">
-            <Link href="/people/outreach/follow-ups">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? 'Edit Follow-Up' : 'Follow-Up Details'}
-          </h1>
-        </div>
-        
-        {!isEditMode && followUp && followUp.status === 'pending' && (
-          <div className="flex gap-2">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      <div className="mx-auto max-w-4xl px-6 py-8">
+        {/* Enhanced Header */}
+        <div className="mb-12">
+          <div className="flex items-center gap-6 mb-6">
             <Button 
-              variant="outline"
-              onClick={() => router.push(`/people/outreach/follow-ups/${id}?edit=true`)}
+              variant="outline" 
+              size="icon" 
+              asChild
+              className="bg-white/70 hover:bg-white/90 border-white/20 backdrop-blur-sm shadow-lg rounded-xl"
             >
-              Edit
+              <Link href="/people/outreach/follow-ups">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
             </Button>
-            <Button
-              onClick={handleComplete}
-              disabled={completing}
-            >
-              {completing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle className="mr-2 h-4 w-4" />
-              )}
-              Mark Complete
-            </Button>
+            
+            <div className="flex items-center gap-4 flex-1">
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl blur-sm opacity-75"></div>
+                <div className="relative bg-gradient-to-r from-orange-500 to-amber-500 p-4 rounded-2xl">
+                  <UserCheck className="h-8 w-8 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                  {isEditMode ? 'Edit Follow-Up' : 'Follow-Up Details'}
+                </h1>
+                <p className="text-xl text-slate-600 mt-2">
+                  {followUp.type} for {followUp.contacts ? 
+                    `${followUp.contacts.first_name} ${followUp.contacts.last_name}` : 
+                    'Unknown Contact'
+                  }
+                </p>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-      
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading...</span>
+          
+          {/* Action Buttons */}
+          {!isEditMode && (
+            <div className="flex gap-3 flex-wrap">
+              <Button 
+                asChild
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white border-0 shadow-lg"
+              >
+                <Link href={`/people/outreach/follow-ups/${id}?mode=edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Follow-Up
+                </Link>
+              </Button>
+              
+              {followUp.status === 'pending' && (
+                <Button 
+                  onClick={handleMarkComplete}
+                  disabled={saving}
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white border-0 shadow-lg"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Marking Complete...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Mark Complete
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-      ) : followUp ? (
-        isEditMode ? (
-          // Edit Form
-          <Card>
-            <CardHeader>
-              <CardTitle>Edit Follow-Up</CardTitle>
-              <CardDescription>
-                Update follow-up details
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="contact">Contact</Label>
-                <Select 
-                  value={contactId}
-                  onValueChange={setContactId}
-                  disabled={saving}
-                >
-                  <SelectTrigger id="contact">
-                    <SelectValue placeholder="Select a contact" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contacts.map((contact) => (
-                      <SelectItem key={contact.id} value={contact.id}>
-                        {`${contact.first_name || ''} ${contact.last_name || ''}`}
-                        {contact.email && ` - ${contact.email}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+        {isEditMode ? (
+          /* Edit Mode */
+          <div className="space-y-8">
+            {/* Contact Information Card */}
+            <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-8 py-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-lg">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Contact & Type</h2>
+                    <p className="text-blue-100">Update contact information and follow-up type</p>
+                  </div>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="type">Follow-Up Type</Label>
-                <Select 
-                  value={followUpType}
-                  onValueChange={setFollowUpType}
-                  disabled={saving}
-                >
-                  <SelectTrigger id="type">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {followUpTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Contact Selection */}
+                  <div className="space-y-3">
+                    <Label htmlFor="contact" className="text-base font-semibold text-slate-700">
+                      Contact <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={contactId} onValueChange={setContactId} disabled={saving}>
+                      <SelectTrigger 
+                        id="contact"
+                        className="h-12 border-2 border-slate-200 rounded-xl bg-white/50 focus:border-blue-500 focus:ring-blue-500"
+                      >
+                        <SelectValue placeholder="Select a contact" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contacts.map((contact) => (
+                          <SelectItem key={contact.id} value={contact.id}>
+                            {`${contact.first_name || ''} ${contact.last_name || ''}`}
+                            {contact.email && ` - ${contact.email}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Follow-up Type */}
+                  <div className="space-y-3">
+                    <Label htmlFor="type" className="text-base font-semibold text-slate-700">
+                      Follow-Up Type <span className="text-red-500">*</span>
+                    </Label>
+                    <Select value={followUpType} onValueChange={setFollowUpType} disabled={saving}>
+                      <SelectTrigger 
+                        id="type"
+                        className="h-12 border-2 border-slate-200 rounded-xl bg-white/50 focus:border-blue-500 focus:ring-blue-500"
+                      >
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {followUpTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Schedule & Status Card */}
+            <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-8 py-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-lg">
+                    <Clock className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Schedule & Status</h2>
+                    <p className="text-purple-100">Update timing and assignment</p>
+                  </div>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select 
-                  value={status}
-                  onValueChange={setStatus}
-                  disabled={saving}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statuses.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s === 'pending' ? 'Pending' : 'Completed'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Follow-up Date */}
+                  <div className="space-y-3">
+                    <Label htmlFor="next_action_date" className="text-base font-semibold text-slate-700">
+                      <CalendarIcon className="h-4 w-4 inline mr-2" />
+                      Follow-Up Date
+                    </Label>
+                    <Input
+                      id="next_action_date"
+                      type="date"
+                      value={nextActionDate}
+                      onChange={(e) => setNextActionDate(e.target.value)}
+                      disabled={saving}
+                      className="h-12 border-2 border-slate-200 rounded-xl bg-white/50 focus:border-purple-500 focus:ring-purple-500"
+                    />
+                  </div>
+                  
+                  {/* Status */}
+                  <div className="space-y-3">
+                    <Label htmlFor="status" className="text-base font-semibold text-slate-700">
+                      Status
+                    </Label>
+                    <Select value={status} onValueChange={setStatus} disabled={saving}>
+                      <SelectTrigger 
+                        id="status"
+                        className="h-12 border-2 border-slate-200 rounded-xl bg-white/50 focus:border-purple-500 focus:ring-purple-500"
+                      >
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Assignment */}
+                  <div className="space-y-3">
+                    <Label htmlFor="assigned_to" className="text-base font-semibold text-slate-700">
+                      <User className="h-4 w-4 inline mr-2" />
+                      Assigned To
+                    </Label>
+                    <Select value={assignedTo} onValueChange={setAssignedTo} disabled={saving}>
+                      <SelectTrigger 
+                        id="assigned_to"
+                        className="h-12 border-2 border-slate-200 rounded-xl bg-white/50 focus:border-purple-500 focus:ring-purple-500"
+                      >
+                        <SelectValue placeholder="Select assignee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Not Assigned</SelectItem>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.name || user.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes Card */}
+            <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+              <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 px-8 py-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-lg">
+                    <FileText className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Notes & Details</h2>
+                    <p className="text-emerald-100">Add context and details about this follow-up</p>
+                  </div>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="next_action_date">Follow-Up Date</Label>
-                <Input
-                  id="next_action_date"
-                  type="date"
-                  value={nextActionDate}
-                  onChange={(e) => setNextActionDate(e.target.value)}
-                  disabled={saving}
-                />
+              <div className="p-8">
+                <div className="space-y-3">
+                  <Label htmlFor="notes" className="text-base font-semibold text-slate-700">
+                    Notes
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    disabled={saving}
+                    placeholder="Add notes about this follow-up..."
+                    className="min-h-[120px] border-2 border-slate-200 rounded-xl bg-white/50 focus:border-emerald-500 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="assigned_to">Assign To (Optional)</Label>
-                <Select 
-                  value={assignedTo}
-                  onValueChange={setAssignedTo}
-                  disabled={saving}
-                >
-                  <SelectTrigger id="assigned_to">
-                    <SelectValue placeholder="Select a user (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Not Assigned</SelectItem>
-                    {users.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.name || user.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  disabled={saving}
-                  className="min-h-[100px]"
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-4">
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-4">
               <Button
                 variant="outline"
                 onClick={() => router.push(`/people/outreach/follow-ups/${id}`)}
                 disabled={saving}
+                className="px-8 py-3 rounded-xl border-2 border-slate-300 hover:bg-slate-50"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSave}
                 disabled={saving}
+                className="px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-lg"
               >
                 {saving ? (
                   <>
@@ -383,104 +480,147 @@ export default function FollowUpDetailPage({ params }: { params: { id: string } 
                   </>
                 )}
               </Button>
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
         ) : (
-          // View Details
-          <Card>
-            <CardHeader>
-              <CardTitle>Follow-Up Details</CardTitle>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge 
-                  variant={followUp.status === 'completed' ? 'default' : 'secondary'}
-                  className={
-                    followUp.status === 'completed' 
-                      ? 'bg-green-100 text-green-800 hover:bg-green-100' 
-                      : 'bg-blue-100 text-blue-800 hover:bg-blue-100'
-                  }
-                >
-                  {followUp.status === 'completed' ? 'Completed' : 'Pending'}
-                </Badge>
-                <Badge variant="outline">
-                  {followUp.type || 'General'}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Contact</h3>
-                  <p className="text-lg font-medium mt-1">
-                    {followUp.contacts ? 
-                      `${followUp.contacts.first_name || ''} ${followUp.contacts.last_name || ''}`.trim() : 
-                      'Unknown Contact'}
-                  </p>
-                  {followUp.contacts?.email && (
-                    <p className="text-sm text-muted-foreground">{followUp.contacts.email}</p>
-                  )}
-                </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Follow-Up Type</h3>
-                  <p className="text-lg font-medium mt-1">{followUp.type}</p>
-                </div>
-                
-                <div className="flex items-start gap-1">
-                  <CalendarIcon className="h-4 w-4 text-muted-foreground mt-0.5" />
+          /* View Mode */
+          <div className="space-y-8">
+            {/* Overview Card */}
+            <div className="bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+              <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-8 py-6">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-lg">
+                    <UserCheck className="h-6 w-6 text-white" />
+                  </div>
                   <div>
-                    <h3 className="text-sm font-medium text-muted-foreground">Follow-Up Date</h3>
-                    <p className="text-lg font-medium mt-1">{formatDate(followUp.next_action_date)}</p>
+                    <h2 className="text-2xl font-bold text-white">Follow-Up Overview</h2>
+                    <p className="text-slate-300">Complete details about this follow-up</p>
                   </div>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Assigned To</h3>
-                  <p className="text-lg font-medium mt-1">
-                    {followUp.assigned_to ? getUserName(followUp.assigned_to) : 'Unassigned'}
-                  </p>
+              </div>
+              
+              <div className="p-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Contact Information */}
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <Users className="h-5 w-5 text-blue-600" />
+                        Contact Information
+                      </h3>
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                        <div className="flex items-center space-x-4">
+                          <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
+                            <User className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-800 text-lg">
+                              {followUp.contacts ? 
+                                `${followUp.contacts.first_name} ${followUp.contacts.last_name}` : 
+                                'Unknown Contact'
+                              }
+                            </p>
+                            {followUp.contacts?.email && (
+                              <p className="text-slate-600">{followUp.contacts.email}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Follow-up Type */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-purple-600" />
+                        Follow-Up Type
+                      </h3>
+                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+                        <Badge className="bg-purple-500 text-white text-lg px-4 py-2">
+                          {followUp.type}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Status and Timing */}
+                  <div className="space-y-6">
+                    {/* Status */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-emerald-600" />
+                        Status
+                      </h3>
+                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 p-6 rounded-xl border border-emerald-200">
+                        <Badge 
+                          className={`text-white text-lg px-4 py-2 ${
+                            followUp.status === 'completed' 
+                              ? 'bg-emerald-500' 
+                              : followUp.status === 'pending'
+                              ? 'bg-yellow-500'
+                              : 'bg-red-500'
+                          }`}
+                        >
+                          {followUp.status.charAt(0).toUpperCase() + followUp.status.slice(1)}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Due Date */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                        <CalendarIcon className="h-5 w-5 text-orange-600" />
+                        Due Date
+                      </h3>
+                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border border-orange-200">
+                        <p className="text-slate-800 font-semibold text-lg">
+                          {new Date(followUp.next_action_date).toLocaleDateString('en-US', {
+                            weekday: 'long',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="col-span-1 md:col-span-2">
-                  <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
-                  <p className="text-sm mt-1">{formatDate(followUp.created_at)}</p>
-                </div>
-                
-                {followUp.completed_at && (
-                  <div className="col-span-1 md:col-span-2">
-                    <h3 className="text-sm font-medium text-muted-foreground">Completed</h3>
-                    <p className="text-sm mt-1">{formatDate(followUp.completed_at)}</p>
+
+                {/* Assignment */}
+                {followUp.assigned_to && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                      <User className="h-5 w-5 text-indigo-600" />
+                      Assigned To
+                    </h3>
+                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-6 rounded-xl border border-indigo-200">
+                      <p className="text-slate-800 font-semibold">
+                        {users.find(u => u.id === followUp.assigned_to)?.name || 
+                         users.find(u => u.id === followUp.assigned_to)?.email || 
+                         'Unknown User'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {followUp.notes && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-slate-600" />
+                      Notes
+                    </h3>
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-6 rounded-xl border border-slate-200">
+                      <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {followUp.notes}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
-              
-              <Separator />
-              
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground">Notes</h3>
-                <div className="p-4 rounded-md bg-muted/50 mt-2 whitespace-pre-wrap">
-                  {followUp.notes || 'No notes available'}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )
-      ) : (
-        <Card>
-          <CardContent className="py-10">
-            <div className="text-center">
-              <h3 className="text-lg font-medium">Follow-up not found</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                The follow-up you're looking for doesn't exist or was deleted
-              </p>
-              <Button className="mt-4" asChild>
-                <Link href="/people/outreach/follow-ups">
-                  Go back to Follow-Ups
-                </Link>
-              </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 } 

@@ -1,0 +1,12 @@
+{
+  "name": "docm-scripts",
+  "version": "1.0.0",
+  "description": "Utility scripts for DOCM Church Management System",
+  "type": "module",
+  "scripts": {
+    "fix-email-queue": "node fix-email-queue.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.26.0"
+  }
+} 

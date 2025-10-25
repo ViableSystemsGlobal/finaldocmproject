@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Contact Deletion Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Contact Deletion Debug Test</h1>
+    
+    <div class="test-section">
+        <h2>Instructions</h2>
+        <ol>
+            <li>Open your browser's Developer Tools (F12)</li>
+            <li>Go to the Console tab</li>
+            <li>Run the SQL tests in your Supabase Dashboard first</li>
+            <li>Then test the functions below</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>SQL Tests to Run in Supabase Dashboard</h2>
+        <p>Copy and paste these into your Supabase Dashboard > SQL Editor:</p>
+        
+        <h3>1. Check Tables</h3>
+        <pre>-- Check what tables exist
+SELECT table_name, table_schema 
+FROM information_schema.tables 
+WHERE table_schema IN ('public', 'people')
+  AND table_name IN ('contacts', 'group_memberships', 'groups', 'members')
+ORDER BY table_schema, table_name;</pre>
+
+        <h3>2. Test Basic Queries</h3>
+        <pre>-- Test contacts table
+SELECT COUNT(*) as contact_count FROM contacts;
+
+-- Test if group_memberships exists
+SELECT COUNT(*) FROM group_memberships LIMIT 1;
+
+-- Test if members exists  
+SELECT COUNT(*) FROM members LIMIT 1;</pre>
+
+        <h3>3. Create Simple Dependency Function</h3>
+        <pre>-- Create a super simple dependency checking function
+CREATE OR REPLACE FUNCTION check_contact_dependencies_simple(p_contact_id UUID)
+RETURNS JSON AS $$
+DECLARE
+    result JSON;
+BEGIN
+    -- Just check if contact exists
+    SELECT json_build_object(
+        'contact_exists', EXISTS(SELECT 1 FROM contacts WHERE id = p_contact_id),
+        'dependencies', '[]'::json
+    ) INTO result;
+    
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;</pre>
+    </div>
+
+    <div class="test-section">
+        <h2>JavaScript Test Functions</h2>
+        <p>Open Console and run these commands:</p>
+        
+        <button onclick="testSupabaseConnection()">Test Supabase Connection</button>
+        <button onclick="testContactsTable()">Test Contacts Table</button>
+        <button onclick="testSimpleFunction()">Test Simple Function</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Test Supabase connection
+        async function testSupabaseConnection() {
+            log('Testing Supabase connection...', 'info');
+            try {
+                const response = await fetch('/api/test-supabase', {
+                    method: 'GET',
+                });
+                const result = await response.json();
+                log('Supabase test result: ' + JSON.stringify(result, null, 2), 'success');
+            } catch (error) {
+                log('Supabase connection error: ' + error.message, 'error');
+            }
+        }
+
+        // Test contacts table access
+        async function testContactsTable() {
+            log('Testing contacts table access...', 'info');
+            // This would need to be implemented in your actual app
+            log('Run this in your app console: const { data, error } = await supabase.from("contacts").select("id").limit(1); console.log({data, error});', 'info');
+        }
+
+        // Test simple function
+        async function testSimpleFunction() {
+            log('Testing simple dependency function...', 'info');
+            // This would need to be implemented in your actual app
+            log('Run this in your app console: const { data, error } = await supabase.rpc("check_contact_dependencies_simple", { p_contact_id: "test-id" }); console.log({data, error});', 'info');
+        }
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = '<strong>' + new Date().toLocaleTimeString() + ':</strong> ' + message;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        // Log initial instructions
+        log('Debug test page loaded. Follow the instructions above.', 'info');
+        log('Make sure to run the SQL tests in Supabase Dashboard first!', 'info');
+    </script>
+</body>
+</html> 

@@ -71,7 +71,7 @@ async function getUserProfileAndPermissions(supabase: any, userId: string): Prom
   hasAdminAccess: boolean;
 }> {
   try {
-    // Get user profile
+      // Get user profile (silently - don't log on every request)
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
@@ -79,14 +79,15 @@ async function getUserProfileAndPermissions(supabase: any, userId: string): Prom
       .single()
 
     if (profileError) {
-      console.error('Middleware - Error fetching user profile:', profileError)
+      // Silently handle profile errors to avoid cluttering logs on every request
       
       // If user profile doesn't exist, create a basic one for existing admin users
-      if (profileError.code === 'PGRST116') {
-        console.log('Middleware - User profile not found, creating basic admin profile')
+      // Skip admin operations if service role key is not available
+      if (profileError.code === 'PGRST116' && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.log('Middleware - User profile not found, attempting to create basic admin profile')
         
         try {
-          // Get user info from auth
+          // Get user info from auth (requires service role)
           const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId)
           
           if (!authError && authUser?.user) {
@@ -123,18 +124,44 @@ async function getUserProfileAndPermissions(supabase: any, userId: string): Prom
     const hasAdminAccess = profile?.app_access?.includes('admin') || false
 
     if (!hasAdminAccess) {
-      console.log('Middleware - User does not have admin access')
+      // console.log('Middleware - User does not have admin access')
       return { profile, permissions: [], hasAdminAccess: false }
     }
 
-    // Get user permissions if they have admin access
+    // If user has admin app access, grant full admin permissions
+    if (hasAdminAccess) {
+      // console.log('Middleware - User has admin app access, granting full permissions')
+      const adminPermissions = [
+        'dashboard:view',
+        'reports:view:all',
+        'attendance:reports',
+        'giving:reports',
+        'comms:reports',
+        'contacts:view:all',
+        'members:view:all',
+        'groups:view:all',
+        'events:view:all',
+        'giving:view:all',
+        'comms:view:all',
+        'admin:settings',
+        'prayers:view:all',
+        'followups:view:all'
+      ]
+      return { 
+        profile, 
+        permissions: adminPermissions, 
+        hasAdminAccess: true 
+      }
+    }
+
+    // Fallback to role-based permissions (if needed in future)
     const { data: userRoles, error: rolesError } = await supabase
       .from('user_roles')
       .select(`role:roles(permissions)`)
       .eq('user_id', userId)
 
     if (rolesError) {
-      console.error('Middleware - Error fetching user roles:', rolesError)
+      // console.error('Middleware - Error fetching user roles:', rolesError)
       return { profile, permissions: [], hasAdminAccess }
     }
 
@@ -148,7 +175,7 @@ async function getUserProfileAndPermissions(supabase: any, userId: string): Prom
       hasAdminAccess 
     }
   } catch (error) {
-    console.error('Middleware - Error getting user data:', error)
+    // console.error('Middleware - Error getting user data:', error)
     return { profile: null, permissions: [], hasAdminAccess: false }
   }
 }
@@ -160,7 +187,8 @@ async function getUserPermissions(supabase: any, userId: string): Promise<string
 }
 
 export async function middleware(request: NextRequest) {
-  console.log('Middleware - Starting request for path:', request.nextUrl.pathname)
+  // Performance: Comment out logging - runs on EVERY request
+  // console.log('Middleware - Starting request for path:', request.nextUrl.pathname)
   
   let response = NextResponse.next({
     request: {
@@ -175,14 +203,15 @@ export async function middleware(request: NextRequest) {
       cookies: {
         get(name: string) {
           const cookie = request.cookies.get(name)
-          // Reduced logging - only log auth token, not the chunked pieces
-          if (name === 'sb-ufjfafcfkalaasdhgcbi-auth-token') {
-            console.log('Middleware - Getting auth token:', cookie ? 'Found' : 'Not found')
-          }
+          // Performance: Removed logging
+          // if (name === 'sb-ufjfafcfkalaasdhgcbi-auth-token') {
+          //   console.log('Middleware - Getting auth token:', cookie ? 'Found' : 'Not found')
+          // }
           return cookie?.value
         },
         set(name: string, value: string, options: CookieOptions) {
-          console.log('Middleware - Setting cookie:', name)
+          // Performance: Removed logging
+          // console.log('Middleware - Setting cookie:', name)
           response.cookies.set({
             name,
             value,
@@ -190,7 +219,8 @@ export async function middleware(request: NextRequest) {
           })
         },
         remove(name: string, options: CookieOptions) {
-          console.log('Middleware - Removing cookie:', name)
+          // Performance: Removed logging
+          // console.log('Middleware - Removing cookie:', name)
           response.cookies.set({
             name,
             value: "",
@@ -208,23 +238,24 @@ export async function middleware(request: NextRequest) {
       console.error('Middleware - Session error:', error)
     }
     
-    console.log('Middleware - Session:', session ? 'Present' : 'Not present')
-    if (session) {
-      console.log('Middleware - Session user:', session.user.email)
-    }
-    console.log('Middleware - Current path:', request.nextUrl.pathname)
+    // Performance: Comment out logs that fire on every request
+    // console.log('Middleware - Session:', session ? 'Present' : 'Not present')
+    // if (session) {
+    //   console.log('Middleware - Session user:', session.user.email)
+    // }
+    // console.log('Middleware - Current path:', request.nextUrl.pathname)
 
     // If user is not signed in and the current path is not /login,
     // redirect the user to /login
     if (!session && request.nextUrl.pathname !== "/login") {
-      console.log('Middleware - Redirecting to login')
+      // console.log('Middleware - Redirecting to login')
       return NextResponse.redirect(new URL("/login", request.url))
     }
 
     // If user is signed in and the current path is /login,
     // redirect the user to /dashboard
     if (session && request.nextUrl.pathname === "/login") {
-      console.log('Middleware - Redirecting to dashboard')
+      // console.log('Middleware - Redirecting to dashboard')
       return NextResponse.redirect(new URL("/dashboard", request.url))
     }
 
@@ -247,20 +278,21 @@ export async function middleware(request: NextRequest) {
       
       // Get user profile and permissions
       const { profile, permissions: userPermissions, hasAdminAccess } = await getUserProfileAndPermissions(serviceSupabase, session.user.id)
-      console.log('Middleware - User profile:', profile)
-      console.log('Middleware - Has admin access:', hasAdminAccess)
-      console.log('Middleware - User permissions:', userPermissions)
+      // console.log('Middleware - User profile:', profile)
+      // console.log('Middleware - Has admin access:', hasAdminAccess)
+      // console.log('Middleware - User permissions:', userPermissions)
       
-      // TEMPORARY: Allow admin@docmchurch.org to bypass profile check
-      const isAdminUser = session.user.email === 'admin@docmchurch.org'
+      // TEMPORARY: Allow known admin emails to bypass profile check
+      const adminEmails = ['admin@docmchurch.org', 'apsolutions16@gmail.com', 'nanasasu@fullstalk.africa']
+      const isAdminUser = adminEmails.includes(session.user.email || '')
       const finalHasAdminAccess = hasAdminAccess || isAdminUser
       
-      console.log('Middleware - Is admin user:', isAdminUser)
-      console.log('Middleware - Final has admin access:', finalHasAdminAccess)
+      // console.log('Middleware - Is admin user:', isAdminUser)
+      // console.log('Middleware - Final has admin access:', finalHasAdminAccess)
       
       // Check if user has admin access to the admin system
       if (!finalHasAdminAccess) {
-        console.log('Middleware - User does not have admin access, redirecting to unauthorized page')
+        // console.log('Middleware - User does not have admin access, redirecting to unauthorized page')
         
         // Redirect to a "unauthorized" page or login with message
         const redirectUrl = new URL('/login', request.url)
@@ -271,7 +303,7 @@ export async function middleware(request: NextRequest) {
       
       // Check if user profile is active
       if (profile && !profile.is_active) {
-        console.log('Middleware - User profile is inactive')
+        // console.log('Middleware - User profile is inactive')
         const redirectUrl = new URL('/login', request.url)
         redirectUrl.searchParams.set('error', 'account_disabled')
         redirectUrl.searchParams.set('message', 'Your account has been disabled')
@@ -282,32 +314,32 @@ export async function middleware(request: NextRequest) {
       
       // If the route requires specific permissions
       if (requiredPermissions) {
-        console.log('Middleware - Checking permissions for route:', pathname)
-        console.log('Middleware - Required permissions:', requiredPermissions)
+        // console.log('Middleware - Checking permissions for route:', pathname)
+        // console.log('Middleware - Required permissions:', requiredPermissions)
         
-        // Check if user has any of the required permissions
-        const hasAccess = hasAnyPermission(userPermissions, requiredPermissions)
-        console.log('Middleware - Has access:', hasAccess)
+        // If user has final admin access, grant all permissions
+        const hasAccess = finalHasAdminAccess || hasAnyPermission(userPermissions, requiredPermissions)
+        // console.log('Middleware - Has access:', hasAccess)
         
         if (!hasAccess) {
-          console.log('Middleware - Access denied for route:', pathname)
+          // console.log('Middleware - Access denied for route:', pathname)
           
           // Don't create redirect loops - allow access to dashboard even without permissions
           // but the dashboard page itself will show appropriate error/limited view
           if (pathname === '/dashboard') {
-            console.log('Middleware - Dashboard access denied but allowing to prevent redirect loop')
+            // console.log('Middleware - Dashboard access denied but allowing to prevent redirect loop')
             return response
           }
           
           // For other protected routes, redirect to dashboard with error message
-          console.log('Middleware - Redirecting to dashboard with access denied message')
+          // console.log('Middleware - Redirecting to dashboard with access denied message')
           const redirectUrl = new URL('/dashboard', request.url)
           redirectUrl.searchParams.set('access_denied', '1')
           redirectUrl.searchParams.set('attempted_route', pathname)
           return NextResponse.redirect(redirectUrl)
         }
       } else {
-        console.log('Middleware - Route not in permissions map, allowing access:', pathname)
+        // console.log('Middleware - Route not in permissions map, allowing access:', pathname)
       }
     }
 

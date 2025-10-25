@@ -12,6 +12,7 @@ import {
   DialogClose
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { 
@@ -40,6 +41,7 @@ type GroupMessageModalProps = {
   groupId: string
   groupName?: string
   recipientIds?: string[]
+  onSuccess?: () => void | Promise<void>
 }
 
 export function GroupMessageModal({
@@ -47,14 +49,16 @@ export function GroupMessageModal({
   onOpenChange,
   groupId,
   groupName = 'Group',
-  recipientIds = []
+  recipientIds = [],
+  onSuccess
 }: GroupMessageModalProps) {
   // State
   const [loading, setLoading] = useState(false)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [channel, setChannel] = useState<MessageChannel>('email')
-  const [templateId, setTemplateId] = useState<string>('')
+  const [templateId, setTemplateId] = useState('')
   const [message, setMessage] = useState('')
+  const [subject, setSubject] = useState('')
   const [templates, setTemplates] = useState<MessageTemplate[]>([])
   const [previewContent, setPreviewContent] = useState('')
   
@@ -107,6 +111,20 @@ export function GroupMessageModal({
     loadTemplates()
   }, [channel])
   
+  // Reset modal state when closed
+  useEffect(() => {
+    if (!open) {
+      // Reset form state when modal closes
+      setChannel('email')
+      setTemplateId('')
+      setMessage('')
+      setSubject('')
+      setPreviewContent('')
+      setLoading(false)
+      setSendingMessage(false)
+    }
+  }, [open])
+  
   // Update template content when selected
   useEffect(() => {
     if (templateId) {
@@ -119,14 +137,23 @@ export function GroupMessageModal({
         
         setMessage(content)
         setPreviewContent(content)
+        
+        // Set default subject for email templates
+        if (channel === 'email' && !subject) {
+          setSubject(`Message from ${groupName}`)
+        }
       }
     }
-  }, [templateId, groupName, templates])
+  }, [templateId, groupName, templates, channel, subject])
   
   // Handle changes
   const handleChannelChange = (value: MessageChannel) => {
     setChannel(value)
     setTemplateId('') // Reset template when channel changes
+    // Set default subject for emails
+    if (value === 'email' && !subject) {
+      setSubject(`Message from ${groupName}`)
+    }
   }
   
   const handleTemplateChange = (value: string) => {
@@ -138,7 +165,11 @@ export function GroupMessageModal({
     setPreviewContent(e.target.value)
   }
   
-  // Handle send message
+  const handleSubjectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSubject(e.target.value)
+  }
+  
+  // Handle send message (using same approach as discipleship groups)
   const handleSendMessage = async () => {
     if (!message.trim()) {
       toast({
@@ -149,10 +180,19 @@ export function GroupMessageModal({
       return
     }
     
+    if (channel === 'email' && !subject.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a subject for the email',
+        variant: 'destructive'
+      })
+      return
+    }
+    
     if (recipientIds.length === 0) {
       toast({
         title: 'Error',
-        description: 'No recipients selected',
+        description: 'No recipients found in this group',
         variant: 'destructive'
       })
       return
@@ -161,43 +201,48 @@ export function GroupMessageModal({
     setSendingMessage(true)
     
     try {
-      // Try to use the comms system
-      const { error } = await supabase
-        .from('comms.messages')
-        .insert({
-          channel,
-          content: message,
-          group_id: groupId,
-          recipient_ids: recipientIds,
-          status: 'pending',
-          created_by: (await supabase.auth.getUser()).data.user?.id
+      // Use the same approach as discipleship groups - import the working message service
+      const { sendGroupMessage, sendGroupMessageDirect } = await import('@/services/messages')
+      
+      const request = {
+        groupId,
+        channel,
+        content: message,
+        subject: channel === 'email' ? subject : undefined,
+        recipientIds
+      }
+
+      // Try database function first, fall back to direct if needed (same as discipleship)
+      let result = await sendGroupMessage(request)
+      
+      if (!result.success && channel === 'email') {
+        console.log('Database function failed, trying direct approach...')
+        result = await sendGroupMessageDirect(request)
+      }
+
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: `Message sent to ${result.successfulSends} recipients${result.errors > 0 ? ` (${result.errors} errors)` : ''}`
         })
         
-      if (error) {
-        // If the comms schema doesn't exist, use RPC function instead
-        const { error: rpcError } = await supabase
-          .rpc('send_group_message', {
-            p_channel: channel,
-            p_content: message,
-            p_group_id: groupId,
-            p_recipient_ids: recipientIds
-          })
-          
-        if (rpcError) throw rpcError
+        // Clear form and close modal
+        setMessage('')
+        setSubject('')
+        setTemplateId('')
+        onOpenChange(false)
+        if (onSuccess) {
+          onSuccess()
+        }
+      } else {
+        throw new Error(result.error || 'Failed to send message')
       }
-      
-      toast({
-        title: 'Success',
-        description: 'Message has been queued for sending'
-      })
-      
-      // Close the modal
-      onOpenChange(false)
+
     } catch (err) {
       console.error('Error sending message:', err)
       toast({
         title: 'Error',
-        description: 'Failed to send message. Check console for details.',
+        description: err instanceof Error ? err.message : 'Failed to send message',
         variant: 'destructive'
       })
     } finally {
@@ -219,71 +264,51 @@ export function GroupMessageModal({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="channel">Message Channel</Label>
-            <Select
+            <select
+              id="channel"
               value={channel}
-              onValueChange={(value) => handleChannelChange(value as MessageChannel)}
+              onChange={(e) => handleChannelChange(e.target.value as MessageChannel)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger id="channel">
-                <SelectValue placeholder="Select channel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="email">
-                  <div className="flex items-center">
-                    <Mail className="mr-2 h-4 w-4" />
-                    <span>Email</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="sms">
-                  <div className="flex items-center">
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    <span>SMS</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="whatsapp">
-                  <div className="flex items-center">
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    <span>WhatsApp</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="push">
-                  <div className="flex items-center">
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    <span>Push Notification</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              <option value="email">📧 Email</option>
+            </select>
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="template">Message Template</Label>
-            <Select
+            <select
+              id="template"
               value={templateId}
-              onValueChange={handleTemplateChange}
+              onChange={(e) => handleTemplateChange(e.target.value)}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <SelectTrigger id="template">
-                <SelectValue placeholder="Select template" />
-              </SelectTrigger>
-              <SelectContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="ml-2">Loading templates...</span>
-                  </div>
-                ) : templates.length > 0 ? (
-                  templates.map(template => (
-                    <SelectItem key={template.id} value={template.id}>
-                      {template.name}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <div className="py-2 px-2 text-sm text-gray-500">
-                    No templates available
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
+              <option value="">Select template</option>
+              {loading ? (
+                <option disabled>Loading templates...</option>
+              ) : templates.length > 0 ? (
+                templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No templates available</option>
+              )}
+            </select>
           </div>
+          
+          {channel === 'email' && (
+            <div className="space-y-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                type="text"
+                id="subject"
+                placeholder="Enter email subject"
+                value={subject}
+                onChange={handleSubjectChange}
+              />
+            </div>
+          )}
           
           <div className="space-y-2">
             <Label htmlFor="message">Message</Label>

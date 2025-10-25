@@ -92,4 +92,57 @@ API endpoints are implemented as Next.js API routes in the `apps/admin/src/app/a
 
 ## License
 
-This project is licensed under the ISC License - see the LICENSE file for details. 
+This project is licensed under the ISC License - see the LICENSE file for details.
+
+# DOCM Web - Church Management System
+
+This is the standalone web application for the church management system.
+
+## Environment Variables
+
+Create a `.env.local` file with the following variables:
+
+```
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
+
+# Google Maps API
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key_here
+
+# Email Configuration
+NEXT_PUBLIC_FROM_ADDRESS=your_from_email_here
+SMTP_HOST=your_smtp_host_here
+SMTP_PORT=587
+SMTP_USER=your_smtp_user_here
+SMTP_PASS=your_smtp_password_here
+SMTP_SECURE=false
+
+# Stripe Configuration (Test Keys)
+STRIPE_SECRET_KEY=your_stripe_secret_key_here
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key_here
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
+
+# Expo Push Notifications
+EXPO_ACCESS_TOKEN=your_expo_access_token_here
+```
+
+## Getting Started
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Run the development server:
+```bash
+npm run dev
+```
+
+3. Open [http://localhost:3000](http://localhost:3000) with your browser.
+
+## Deployment
+
+This app is ready to deploy to Vercel, Netlify, or any other Next.js hosting platform. 

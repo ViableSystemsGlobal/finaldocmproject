@@ -1,122 +1,219 @@
-import * as React from "react"
-import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
+'use client'
 
-import { cn } from "@/lib/utils"
-import { ButtonProps, buttonVariants } from "@/components/ui/button"
+import React from 'react'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-const Pagination = ({
-  className,
-  ...props
-}: React.ComponentProps<"nav">) => (
-  <nav
-    role="navigation"
-    aria-label="pagination"
-    className={cn("mx-auto flex w-full justify-center", className)}
-    {...props}
-  />
-)
-Pagination.displayName = "Pagination"
+interface PaginationProps {
+  currentPage: number
+  totalPages: number
+  totalItems: number
+  itemsPerPage: number
+  onPageChange: (page: number) => void
+  onItemsPerPageChange: (itemsPerPage: number) => void
+  itemsPerPageOptions?: number[]
+  showItemsPerPage?: boolean
+  showPageInfo?: boolean
+  showFirstLast?: boolean
+  className?: string
+}
 
-const PaginationContent = React.forwardRef<
-  HTMLUListElement,
-  React.ComponentProps<"ul">
->(({ className, ...props }, ref) => (
-  <ul
-    ref={ref}
-    className={cn("flex flex-row items-center gap-1", className)}
-    {...props}
-  />
-))
-PaginationContent.displayName = "PaginationContent"
+export function Pagination({
+  currentPage,
+  totalPages,
+  totalItems,
+  itemsPerPage,
+  onPageChange,
+  onItemsPerPageChange,
+  itemsPerPageOptions = [5, 10, 25, 50, 100],
+  showItemsPerPage = true,
+  showPageInfo = true,
+  showFirstLast = true,
+  className = ''
+}: PaginationProps) {
+  const goToPage = (page: number) => {
+    onPageChange(Math.max(1, Math.min(page, totalPages)))
+  }
 
-const PaginationItem = React.forwardRef<
-  HTMLLIElement,
-  React.ComponentProps<"li">
->(({ className, ...props }, ref) => (
-  <li ref={ref} className={cn("", className)} {...props} />
-))
-PaginationItem.displayName = "PaginationItem"
+  const goToPrevious = () => {
+    onPageChange(Math.max(1, currentPage - 1))
+  }
 
-type PaginationLinkProps = {
-  isActive?: boolean
-} & Pick<ButtonProps, "size"> &
-  React.ComponentProps<"a">
+  const goToNext = () => {
+    onPageChange(Math.min(totalPages, currentPage + 1))
+  }
 
-const PaginationLink = ({
-  className,
-  isActive,
-  size = "icon",
-  ...props
-}: PaginationLinkProps) => (
-  <a
-    aria-current={isActive ? "page" : undefined}
-    className={cn(
-      buttonVariants({
-        variant: isActive ? "outline" : "ghost",
-        size,
-      }),
-      className,
-      isActive && "bg-muted hover:bg-muted",
-      "cursor-pointer"
-    )}
-    {...props}
-  />
-)
-PaginationLink.displayName = "PaginationLink"
+  const startIndex = (currentPage - 1) * itemsPerPage + 1
+  const endIndex = Math.min(currentPage * itemsPerPage, totalItems)
 
-const PaginationPrevious = ({
-  className,
-  ...props
-}: React.ComponentProps<typeof PaginationLink>) => (
-  <PaginationLink
-    aria-label="Go to previous page"
-    size="default"
-    className={cn("gap-1 pl-2.5", className)}
-    {...props}
-  >
-    <ChevronLeft className="h-4 w-4" />
-    <span>Previous</span>
-  </PaginationLink>
-)
-PaginationPrevious.displayName = "PaginationPrevious"
+  // Don't render if there are no items or only one page and no items per page selector
+  if (totalItems === 0 || (totalPages <= 1 && !showItemsPerPage)) {
+    return null
+  }
 
-const PaginationNext = ({
-  className,
-  ...props
-}: React.ComponentProps<typeof PaginationLink>) => (
-  <PaginationLink
-    aria-label="Go to next page"
-    size="default"
-    className={cn("gap-1 pr-2.5", className)}
-    {...props}
-  >
-    <span>Next</span>
-    <ChevronRight className="h-4 w-4" />
-  </PaginationLink>
-)
-PaginationNext.displayName = "PaginationNext"
+  return (
+    <div className={`bg-white/70 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 ${className}`}>
+      <div className="px-8 py-6">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          {/* Items per page selector */}
+          {showItemsPerPage && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-slate-600">Show:</span>
+              <Select 
+                value={itemsPerPage.toString()} 
+                onValueChange={(value) => onItemsPerPageChange(Number(value))}
+              >
+                <SelectTrigger className="w-20 h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {itemsPerPageOptions.map(option => (
+                    <SelectItem key={option} value={option.toString()}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-sm text-slate-600">per page</span>
+            </div>
+          )}
 
-const PaginationEllipsis = ({
-  className,
-  ...props
-}: React.ComponentProps<"span">) => (
-  <span
-    aria-hidden
-    className={cn("flex h-9 w-9 items-center justify-center", className)}
-    {...props}
-  >
-    <MoreHorizontal className="h-4 w-4" />
-    <span className="sr-only">More pages</span>
-  </span>
-)
-PaginationEllipsis.displayName = "PaginationEllipsis"
+          {/* Page info */}
+          {showPageInfo && (
+            <div className="text-sm text-slate-600">
+              {totalItems > 0 ? (
+                <>
+                  Showing {startIndex}-{endIndex} of {totalItems} items
+                  {totalPages > 1 && ` • Page ${currentPage} of ${totalPages}`}
+                </>
+              ) : (
+                'No items found'
+              )}
+            </div>
+          )}
 
-export {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
+          {/* Navigation buttons */}
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              {showFirstLast && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 h-8 text-sm"
+                >
+                  First
+                </Button>
+              )}
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPrevious}
+                disabled={currentPage === 1}
+                className="px-3 py-1 h-8 text-sm"
+              >
+                Previous
+              </Button>
+              
+              {/* Page numbers */}
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={pageNum === currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => goToPage(pageNum)}
+                      className={`px-3 py-1 h-8 text-sm ${
+                        pageNum === currentPage 
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600' 
+                          : ''
+                      }`}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNext}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 h-8 text-sm"
+              >
+                Next
+              </Button>
+              
+              {showFirstLast && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => goToPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 h-8 text-sm"
+                >
+                  Last
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Hook for pagination logic
+export function usePagination<T>(
+  items: T[],
+  initialItemsPerPage: number = 10
+) {
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const [itemsPerPage, setItemsPerPage] = React.useState(initialItemsPerPage)
+
+  const totalPages = Math.ceil(items.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentItems = items.slice(startIndex, endIndex)
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1) // Reset to first page when changing items per page
+  }
+
+  // Reset to first page when items array changes (e.g., after filtering)
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [items.length])
+
+  return {
+    currentPage,
+    totalPages,
+    itemsPerPage,
+    currentItems,
+    totalItems: items.length,
+    handlePageChange,
+    handleItemsPerPageChange,
+    setCurrentPage,
+    setItemsPerPage
+  }
 } 

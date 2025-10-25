@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
+import { Providers } from "./providers";
+import { TimezoneInitializer } from '@/components/TimezoneInitializer'
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CICS Admin",
-  description: "Church Information & Communication System Admin",
+  title: "Admin Dashboard",
+  description: "Church Management System Admin",
 };
 
 // Custom ToastWrapper component that includes toast functionality
@@ -27,16 +29,19 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-background text-foreground`}>
+      <body className={`${inter.className} bg-background text-foreground`} suppressHydrationWarning>
+        <TimezoneInitializer />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
-          <ToastContainer>
-            {children}
-          </ToastContainer>
+          <Providers>
+            <ToastContainer>
+              {children}
+            </ToastContainer>
+          </Providers>
         </ThemeProvider>
       </body>
     </html>

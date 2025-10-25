@@ -1,13 +1,15 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Loader2, Search, Plus, X } from 'lucide-react'
+import { Loader2, Search, Plus, X, Calendar as CalendarIcon, Users, UserPlus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Avatar } from '@/components/ui/avatar'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -23,10 +25,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { toast } from '@/components/ui/use-toast'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
-import { getContactsForMemberSelection, addMembership } from '@/services/groups'
+import { getContactsNotInGroup } from '@/services/members'
+import { addMembership } from '@/services/groups'
 
 // Format function for date display
 const formatDate = (date: Date) => {
@@ -40,6 +51,12 @@ type Contact = {
   email?: string;
   phone?: string;
   profile_image?: string;
+};
+
+type SelectedMember = {
+  contact: Contact;
+  role: string;
+  joinedAt: Date;
 };
 
 interface AddMemberModalProps {
@@ -62,20 +79,17 @@ export function AddMemberModal({
   const [submitting, setSubmitting] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   
-  // Form state
-  const [contactId, setContactId] = useState('')
-  const [role, setRole] = useState('member') // Default role
-  const [joinedDate, setJoinedDate] = useState<Date | undefined>(new Date())
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  // Form state for multiple member selection
+  const [selectedMembers, setSelectedMembers] = useState<SelectedMember[]>([])
   
   useEffect(() => {
     const loadContacts = async () => {
       try {
         setLoading(true)
-        const { data, error } = await getContactsForMemberSelection()
+        const { data, error } = await getContactsNotInGroup(groupId)
         
         if (error) {
-          throw new Error(error.message || 'Failed to load contacts')
+          throw new Error('Failed to load contacts')
         }
         
         setContacts(data || [])
@@ -94,10 +108,22 @@ export function AddMemberModal({
     if (open) {
       loadContacts()
     }
+  }, [open, groupId])
+  
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!open) {
+      setSelectedMembers([])
+      setSearchQuery('')
+    }
   }, [open])
   
-  // Filter contacts based on search query
+  // Filter contacts based on search query and exclude already selected
   const filteredContacts = contacts.filter(contact => {
+    // Check if contact is already selected
+    const isSelected = selectedMembers.some(member => member.contact.id === contact.id)
+    if (isSelected) return false
+    
     if (!searchQuery) return true
     
     const query = searchQuery.toLowerCase()
@@ -108,20 +134,47 @@ export function AddMemberModal({
     )
   })
   
-  const handleContactSelect = (id: string) => {
-    setContactId(id)
-    const contact = contacts.find(c => c.id === id)
-    setSelectedContact(contact || null)
+  const handleContactAdd = (contact: Contact) => {
+    const newMember: SelectedMember = {
+      contact,
+      role: 'member', // Default role
+      joinedAt: new Date()
+    }
+    setSelectedMembers(prev => [...prev, newMember])
+  }
+  
+  const handleMemberRemove = (contactId: string) => {
+    setSelectedMembers(prev => prev.filter(member => member.contact.id !== contactId))
+  }
+  
+  const handleMemberRoleChange = (contactId: string, newRole: string) => {
+    setSelectedMembers(prev => 
+      prev.map(member => 
+        member.contact.id === contactId 
+          ? { ...member, role: newRole }
+          : member
+      )
+    )
+  }
+  
+  const handleMemberDateChange = (contactId: string, newDate: Date) => {
+    setSelectedMembers(prev => 
+      prev.map(member => 
+        member.contact.id === contactId 
+          ? { ...member, joinedAt: newDate }
+          : member
+      )
+    )
   }
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!contactId || !role) {
+    if (selectedMembers.length === 0) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Please select a contact and role'
+        description: 'Please select at least one member to add'
       })
       return
     }
@@ -129,35 +182,61 @@ export function AddMemberModal({
     setSubmitting(true)
     
     try {
-      const { error } = await addMembership(
-        groupId,
-        contactId,
-        role,
-        joinedDate ? joinedDate.toISOString() : undefined
-      )
+      let successCount = 0
+      let errorCount = 0
       
-      if (error) throw error
+      // Add members one by one
+      for (const member of selectedMembers) {
+        try {
+          const { error } = await addMembership(
+            groupId,
+            member.contact.id,
+            member.role,
+            member.joinedAt.toISOString(),
+            false // Admin adds members directly, no approval needed
+          )
+          
+          if (error) {
+            console.error(`Failed to add ${member.contact.first_name} ${member.contact.last_name}:`, error)
+            errorCount++
+          } else {
+            successCount++
+          }
+        } catch (err) {
+          console.error(`Failed to add ${member.contact.first_name} ${member.contact.last_name}:`, err)
+          errorCount++
+        }
+      }
       
-      toast({
-        title: 'Success',
-        description: 'Member added successfully'
-      })
+      // Show results
+      if (successCount > 0) {
+        toast({
+          title: 'Success',
+          description: `${successCount} member${successCount > 1 ? 's' : ''} added successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+        })
+      }
+      
+      if (errorCount > 0 && successCount === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to add members. Please try again.'
+        })
+      }
       
       // Reset form state
-      setContactId('')
-      setRole('member')
-      setJoinedDate(new Date())
-      setSelectedContact(null)
+      setSelectedMembers([])
+      setSearchQuery('')
       
       // Close modal and trigger refresh
       onOpenChange(false)
       if (onSuccess) onSuccess()
     } catch (err) {
-      console.error('Failed to add member:', err)
+      console.error('Failed to add members:', err)
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: err instanceof Error ? err.message : 'Failed to add member'
+        description: 'Failed to add members'
       })
     } finally {
       setSubmitting(false)
@@ -166,163 +245,215 @@ export function AddMemberModal({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Add Member to {groupName}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Add Members to {groupName}
+          </DialogTitle>
           <DialogDescription>
-            Select a contact to add as a member of this group
+            Select multiple contacts to add as members of this group. You can set individual roles and join dates.
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-2">
-            {loading ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <span className="ml-2">Loading contacts...</span>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 py-4">
+          {/* Available Contacts */}
+          <div className="space-y-4">
+            <div>
+              <Label className="text-sm font-semibold">Available Contacts</Label>
+              <p className="text-xs text-muted-foreground">Click to add to group</p>
+            </div>
+            
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search contacts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="border rounded-lg max-h-64 overflow-y-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="ml-2 text-sm">Loading contacts...</span>
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">
+                    {contacts.length > 0 
+                      ? 'No contacts match your search' 
+                      : 'No contacts available to add'}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-2 space-y-1">
+                  {filteredContacts.map((contact) => (
+                    <div 
+                      key={contact.id} 
+                      className="flex items-center justify-between p-2 hover:bg-muted/50 cursor-pointer rounded-md transition-colors"
+                      onClick={() => handleContactAdd(contact)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar 
+                          src={contact.profile_image} 
+                          alt={`${contact.first_name} ${contact.last_name}`}
+                          size="sm"
+                        />
+                        <div>
+                          <p className="font-medium text-sm">{contact.first_name} {contact.last_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {contact.email || contact.phone || 'No contact info'}
+                          </p>
+                        </div>
+                      </div>
+                      <Plus className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Selected Members */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-semibold">Selected Members</Label>
+                <p className="text-xs text-muted-foreground">
+                  {selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} selected
+                </p>
               </div>
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="contact">Select Contact</Label>
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      placeholder="Search contacts..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="mb-2"
-                    />
-                    <div className="border rounded-md max-h-48 overflow-y-auto">
-                      {filteredContacts.length === 0 ? (
-                        <p className="text-center py-4 text-muted-foreground">
-                          {contacts.length > 0 
-                            ? 'No contacts match your search' 
-                            : 'No contacts available'}
-                        </p>
-                      ) : (
-                        filteredContacts.map((contact) => (
-                          <div 
-                            key={contact.id} 
-                            className={`flex items-center justify-between p-2 hover:bg-muted/50 cursor-pointer rounded-md ${
-                              contact.id === contactId ? 'bg-muted/70' : ''
-                            }`}
-                            onClick={() => handleContactSelect(contact.id)}
-                          >
+              {selectedMembers.length > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {selectedMembers.length}
+                </Badge>
+              )}
+            </div>
+            
+            <div className="border rounded-lg max-h-64 overflow-y-auto">
+              {selectedMembers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No members selected yet</p>
+                  <p className="text-xs">Click contacts from the left to add them</p>
+                </div>
+              ) : (
+                <div className="p-2">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Member</TableHead>
+                        <TableHead className="text-xs">Role</TableHead>
+                        <TableHead className="text-xs w-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedMembers.map((member) => (
+                        <TableRow key={member.contact.id}>
+                          <TableCell className="py-2">
                             <div className="flex items-center gap-2">
                               <Avatar 
-                                src={contact.profile_image} 
-                                alt={`${contact.first_name} ${contact.last_name}`}
+                                src={member.contact.profile_image} 
+                                alt={`${member.contact.first_name} ${member.contact.last_name}`}
                                 size="sm"
                               />
                               <div>
-                                <p className="font-medium">{contact.first_name} {contact.last_name}</p>
+                                <p className="font-medium text-xs">
+                                  {member.contact.first_name} {member.contact.last_name}
+                                </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {contact.email || contact.phone || 'No contact info'}
+                                  {member.contact.email || 'No email'}
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center justify-center w-5 h-5 rounded-full border">
-                              {contact.id === contactId && <div className="w-3 h-3 rounded-full bg-primary"></div>}
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Select 
+                              value={member.role} 
+                              onValueChange={(value) => handleMemberRoleChange(member.contact.id, value)}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="member">Member</SelectItem>
+                                <SelectItem value="visitor">Visitor</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMemberRemove(member.contact.id)}
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-                
-                {/* Selected contact display */}
-                {selectedContact && (
-                  <div className="mt-4 p-3 bg-muted/30 rounded-md">
-                    <div className="flex items-center gap-3">
-                      <Avatar 
-                        src={selectedContact.profile_image} 
-                        alt={`${selectedContact.first_name} ${selectedContact.last_name}`}
-                        size="md"
-                      />
-                      <div>
-                        <p className="font-medium">
-                          {selectedContact.first_name} {selectedContact.last_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedContact.email || selectedContact.phone || 'No contact info'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role in Group</Label>
-                  <Select value={role} onValueChange={setRole}>
-                    <SelectTrigger id="role">
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="leader">Leader</SelectItem>
-                      <SelectItem value="co-leader">Co-Leader</SelectItem>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="visitor">Visitor</SelectItem>
-                    </SelectContent>
-                  </Select>
+              )}
+            </div>
+            
+            {/* Global Settings for Selected Members */}
+            {selectedMembers.length > 0 && (
+              <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+                <Label className="text-xs font-semibold">Group Settings</Label>
+                <div className="text-xs text-muted-foreground">
+                  All members will be added with today's date: <strong>{formatDate(new Date())}</strong>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="joined_date">Joined Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="joined_date"
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !joinedDate && "text-muted-foreground"
-                        )}
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {joinedDate ? formatDate(joinedDate) : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-0 border-2 rounded-lg shadow-lg bg-white">
-                      <Calendar
-                        mode="single"
-                        selected={joinedDate}
-                        onSelectDate={setJoinedDate}
-                        initialFocus
-                        disableFutureDates
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </>
+              </div>
             )}
           </div>
-          
-          <DialogFooter className="mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={submitting || !contactId || !role}
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                'Add Member'
+        </div>
+        
+        <DialogFooter className="border-t pt-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="text-sm text-muted-foreground">
+              {selectedMembers.length > 0 && (
+                <span>{selectedMembers.length} member{selectedMembers.length !== 1 ? 's' : ''} ready to add</span>
               )}
-            </Button>
-          </DialogFooter>
-        </form>
+            </div>
+            
+            <div className="space-x-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={submitting || selectedMembers.length === 0}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Add {selectedMembers.length} Member{selectedMembers.length !== 1 ? 's' : ''}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

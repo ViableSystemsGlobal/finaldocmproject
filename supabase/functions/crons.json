@@ -1,0 +1,27 @@
+{
+  "crons": [
+    {
+      "name": "process-email-queue",
+      "schedule": "*/5 * * * *",
+      "function": "process_email_queue"
+    },
+    {
+      "name": "birthday-workflows",
+      "schedule": "0 8 * * *",
+      "function": "execute-workflows",
+      "payload": { "trigger": { "type": "birthday" } }
+    },
+    {
+      "name": "visitor-followup-workflows",
+      "schedule": "0 10 * * *",
+      "function": "execute-workflows",
+      "payload": { "trigger": { "type": "visitor_followup" } }
+    },
+    {
+      "name": "event-reminder-workflows",
+      "schedule": "0 18 * * *",
+      "function": "execute-workflows",
+      "payload": { "trigger": { "type": "event_reminder" } }
+    }
+  ]
+} 

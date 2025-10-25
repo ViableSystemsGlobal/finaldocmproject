@@ -1,82 +1,63 @@
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export type CommsRecipient = {
   id: string
   campaign_id: string
-  contact_id: string | null
   to_address: string
-  variables: any | null
-  status: 'pending' | 'sent' | 'failed' | 'delivered' | 'opened' | 'clicked'
-  last_error: string | null
-  sent_at: string | null
-  delivered_at: string | null
-  opened_at: string | null
-  clicked_at: string | null
+  channel: 'email' | 'sms' | 'whatsapp' | 'push'
+  contact_id?: string
+  variables?: any
+  status: 'pending' | 'sent' | 'delivered' | 'failed'
+  created_at: string
+  updated_at: string
   // Join data
-  contacts?: {
-    id: string
-    first_name: string | null
-    last_name: string | null
-    email: string | null
-    phone: string | null
-  } | null
+  contact?: {
+    first_name: string
+    last_name: string
+    email: string
+    phone: string
+  }
 }
 
 export type CreateRecipientParams = {
   campaign_id: string
-  contact_id?: string | null
   to_address: string
-  variables?: any | null
+  channel: CommsRecipient['channel']
+  contact_id?: string
+  variables?: any
 }
 
-export type UpdateRecipientParams = Partial<{
-  status: CommsRecipient['status']
-  last_error: string | null
-  sent_at: string | null
-  delivered_at: string | null
-  opened_at: string | null
-  clicked_at: string | null
-}>
+export type UpdateRecipientParams = Partial<CreateRecipientParams> & {
+  status?: CommsRecipient['status']
+}
 
 /**
  * Fetch all recipients for a campaign
  */
-export async function fetchRecipients(campaignId: string) {
-  const { data, error } = await supabase
-    .from('comms_recipients')
+export async function fetchCampaignRecipients(campaignId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('campaign_recipients')
     .select(`
       *,
-      contacts(id, first_name, last_name, email, phone)
+      contact:contact_id(
+        first_name,
+        last_name,
+        email,
+        phone
+      )
     `)
     .eq('campaign_id', campaignId)
-    .order('id')
   
   return { data: data as CommsRecipient[] | null, error }
 }
 
 /**
- * Fetch recipients for a campaign by status
- */
-export async function fetchRecipientsByStatus(campaignId: string, status: CommsRecipient['status']) {
-  const { data, error } = await supabase
-    .from('comms_recipients')
-    .select(`
-      *,
-      contacts(id, first_name, last_name, email, phone)
-    `)
-    .eq('campaign_id', campaignId)
-    .eq('status', status)
-    .order('id')
-  
-  return { data: data as CommsRecipient[] | null, error }
-}
-
-/**
- * Create a new recipient for a campaign
+ * Create a new recipient
  */
 export async function createRecipient(params: CreateRecipientParams) {
-  const { data, error } = await supabase
-    .from('comms_recipients')
+  const { data, error } = await supabaseAdmin
+    .from('campaign_recipients')
     .insert([params])
     .select()
     .single()
@@ -85,23 +66,27 @@ export async function createRecipient(params: CreateRecipientParams) {
 }
 
 /**
- * Batch create multiple recipients for a campaign
+ * Create multiple recipients in batch
  */
-export async function createRecipientsBatch(recipients: CreateRecipientParams[]) {
-  const { data, error } = await supabase
-    .from('comms_recipients')
+export async function createRecipients(recipients: CreateRecipientParams[]) {
+  if (recipients.length === 0) {
+    return { data: [], error: null }
+  }
+  
+  const { data, error } = await supabaseAdmin
+    .from('campaign_recipients')
     .insert(recipients)
     .select()
   
-  return { data: data as CommsRecipient[] | null, error, count: data?.length || 0 }
+  return { data: data as CommsRecipient[] | null, error }
 }
 
 /**
- * Update a recipient's status
+ * Update a recipient
  */
 export async function updateRecipient(id: string, params: UpdateRecipientParams) {
-  const { data, error } = await supabase
-    .from('comms_recipients')
+  const { data, error } = await supabaseAdmin
+    .from('campaign_recipients')
     .update(params)
     .eq('id', id)
     .select()
@@ -111,66 +96,135 @@ export async function updateRecipient(id: string, params: UpdateRecipientParams)
 }
 
 /**
- * Retry sending to a failed recipient
+ * Delete a recipient
  */
-export async function retryRecipient(id: string) {
-  // First get the recipient and campaign to determine the channel
-  const { data: recipient, error: recipientError } = await supabase
-    .from('comms_recipients')
+export async function deleteRecipient(id: string) {
+  const { error } = await supabaseAdmin
+    .from('campaign_recipients')
+    .delete()
+    .eq('id', id)
+  
+  return { success: !error, error }
+}
+
+/**
+ * Fetch recipients by status
+ */
+export async function fetchRecipientsByStatus(campaignId: string, status: CommsRecipient['status']) {
+  const { data, error } = await supabaseAdmin
+    .from('campaign_recipients')
     .select(`
       *,
-      campaign:campaign_id(channel)
+      contact:contact_id(
+        first_name,
+        last_name,
+        email,
+        phone
+      )
     `)
-    .eq('id', id)
-    .single()
+    .eq('campaign_id', campaignId)
+    .eq('status', status)
   
-  if (recipientError || !recipient) {
-    return { success: false, error: recipientError }
+  return { data: data as CommsRecipient[] | null, error }
+}
+
+/**
+ * Import recipients from contacts
+ */
+export async function importRecipientsFromContacts(
+  campaignId: string, 
+  contactIds: string[], 
+  channel: CommsRecipient['channel']
+) {
+  // First fetch the contacts
+  const { data: contacts, error: contactsError } = await supabaseAdmin
+    .from('contacts')
+    .select('id, first_name, last_name, email, phone')
+    .in('id', contactIds)
+  
+  if (contactsError || !contacts) {
+    return { success: false, error: contactsError }
   }
   
-  // Update recipient status to pending
-  const { error: updateError } = await supabase
-    .from('comms_recipients')
-    .update({ 
-      status: 'pending',
-      last_error: null
-    })
-    .eq('id', id)
-  
-  if (updateError) {
-    return { success: false, error: updateError }
-  }
-  
-  // Call the appropriate edge function based on the channel
-  try {
-    const campaign = recipient.campaign as any
-    const functionName = `send_${campaign.channel}_single`
-    
-    const { error: functionError } = await supabase.functions.invoke(functionName, {
-      body: { recipient_id: id }
-    })
-    
-    if (functionError) {
-      return { success: false, error: functionError }
+  // Map contacts to recipients
+  const recipients = contacts.map(contact => {
+    // Choose the appropriate address based on channel
+    let toAddress = ''
+    if (channel === 'email') {
+      toAddress = contact.email || ''
+    } else if (['sms', 'whatsapp'].includes(channel)) {
+      toAddress = contact.phone || ''
     }
     
-    return { success: true, error: null }
-  } catch (error) {
-    return { success: false, error }
+    // Skip if no valid address
+    if (!toAddress) return null
+    
+    return {
+      campaign_id: campaignId,
+      contact_id: contact.id,
+      to_address: toAddress,
+      channel,
+      variables: {
+        first_name: contact.first_name,
+        last_name: contact.last_name,
+        name: `${contact.first_name} ${contact.last_name}`.trim()
+      }
+    }
+  }).filter(Boolean) as CreateRecipientParams[]
+  
+  if (recipients.length === 0) {
+    return { 
+      success: false, 
+      error: 'No valid recipients could be created from the selected contacts' 
+    }
+  }
+  
+  // Create the recipients
+  const { data, error } = await supabaseAdmin
+    .from('campaign_recipients')
+    .insert(recipients)
+    .select()
+  
+  return { 
+    success: !error, 
+    data, 
+    error,
+    created: recipients.length
   }
 }
 
 /**
- * Cancel a pending recipient
+ * Create multiple recipients in batch for the unified comms system
  */
-export async function cancelRecipient(id: string) {
-  const { data, error } = await supabase
-    .from('comms_recipients')
-    .update({ status: 'failed', last_error: 'Manually cancelled' })
-    .eq('id', id)
-    .eq('status', 'pending') // Only cancel if still pending
-    .select()
-    .single()
+export async function createCommsRecipients(recipients: CreateRecipientParams[]) {
+  if (recipients.length === 0) {
+    return { data: [], error: null }
+  }
   
-  return { data: data as CommsRecipient | null, error }
+  const { data, error } = await supabaseAdmin
+    .from('comms_recipients')
+    .insert(recipients)
+    .select()
+  
+  return { data: data as CommsRecipient[] | null, error }
+}
+
+/**
+ * Fetch all recipients for a campaign from the unified comms system
+ */
+export async function fetchCommsRecipients(campaignId: string) {
+  const { data, error } = await supabaseAdmin
+    .from('comms_recipients')
+    .select(`
+      *,
+      contact:contact_id(
+        first_name,
+        last_name,
+        email,
+        phone
+      )
+    `)
+    .eq('campaign_id', campaignId)
+  
+  return { data: data as CommsRecipient[] | null, error }
 } 

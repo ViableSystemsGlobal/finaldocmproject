@@ -11,26 +11,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create a trigger function that will run before asset is selected
-CREATE OR REPLACE FUNCTION public.update_asset_depreciation_on_select()
+-- Create a trigger function that will run when assets are updated
+CREATE OR REPLACE FUNCTION public.update_asset_depreciation_on_change()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Update the depreciation value before returning the row
+  -- Update the depreciation value for the specific asset
   PERFORM public.update_asset_depreciation(NEW.id);
-  
-  -- Select the updated record
-  SELECT * INTO NEW FROM assets WHERE id = NEW.id;
   
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Create a trigger on the assets table for SELECT operations
--- This ensures depreciation is updated whenever assets are queried
-CREATE TRIGGER trigger_update_asset_depreciation_before_select
-BEFORE SELECT ON public.assets
+-- Create a trigger on the assets table for UPDATE operations
+-- This ensures depreciation is updated whenever assets are modified
+CREATE TRIGGER trigger_update_asset_depreciation_on_update
+AFTER UPDATE ON public.assets
 FOR EACH ROW
-EXECUTE FUNCTION public.update_asset_depreciation_on_select();
+EXECUTE FUNCTION public.update_asset_depreciation_on_change();
 
 -- Create a function to automatically update asset depreciation daily
 CREATE OR REPLACE FUNCTION public.daily_asset_depreciation_update()

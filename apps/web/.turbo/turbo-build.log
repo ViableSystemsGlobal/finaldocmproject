@@ -1,0 +1,346 @@
+
+
+> web@0.1.0 build /Users/nanasasu/docm-cics/apps/web
+> next build
+
+   [1m[38;2;173;127;168m▲ Next.js 15.3.3[39m[22m
+   - Environments: .env
+
+ [37m[1m [22m[39m Creating an optimized production build ...
+ [32m[1m✓[22m[39m Compiled successfully in 2000ms
+[?25l [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m..[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m...[39m[2K[1G [37m[1m [22m[39m Linting and checking validity of types  [36m.[39m[2K[1G[?25h[31m
+Failed to compile.[39m
+[?25l [36m.[39m [2K[1G[?25h
+./src/app/api/about/route.ts
+103:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+118:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+199:38  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+199:46  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+266:56  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/blog-page/route.ts
+70:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/contact/route.ts
+113:21  Error: 'fallbackData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/contact-page/route.ts
+138:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/events/route.ts
+52:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+67:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+124:49  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/events-page/route.ts
+21:43  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+21:51  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+24:18  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+75:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+90:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/footer/route.ts
+82:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+97:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/gallery-page/route.ts
+51:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/homepage/route.ts
+81:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+96:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+172:31  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+266:41  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+266:70  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+266:78  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+267:18  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+315:72  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/media-collections/[collectionId]/route.ts
+4:11  Error: 'MediaItem' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/navigation/route.ts
+24:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+39:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+111:37  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+113:20  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+133:28  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+133:36  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/planned-visits/route.ts
+162:28  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+163:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+164:28  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+165:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+166:26  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+174:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/app/api/sermons/browse/route.ts
+192:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+196:11  Error: 'filteredSermons' is never reassigned. Use 'const' instead.  prefer-const
+268:11  Error: 'filteredSermons' is never reassigned. Use 'const' instead.  prefer-const
+
+./src/app/api/sermons/route.ts
+89:11  Error: 'featured' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+104:14  Error: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+116:9  Error: 'query' is never reassigned. Use 'const' instead.  prefer-const
+
+./src/app/api/sermons-page/route.ts
+60:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/test-db/route.ts
+4:27  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/api/test-planned-visit/route.ts
+4:28  Error: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/app/blog/[slug]/page.tsx
+58:60  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+58:81  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/app/media/gallery/[collectionId]/page.tsx
+10:9  Error: 'router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+32:9  Error: 'formatFileSize' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+116:9  Error: 'defaultTab' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+127:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+258:35  Error: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+265:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+327:65  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+340:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/media/sermons/browse/page.tsx
+28:31  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+52:37  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+62:30  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+144:57  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+145:59  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+158:6  Warning: React Hook useEffect has a missing dependency: 'fetchSermons'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+161:31  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+335:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/layout/footer.tsx
+44:39  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+68:34  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+69:31  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+90:31  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+91:28  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/components/sections/DynamicSection.tsx
+13:25  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+22:57  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+59:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+120:42  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+160:65  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+187:19  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/about-hero.tsx
+50:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/about-snapshot.tsx
+134:19  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/all-posts.tsx
+21:9  Error: 'endPage' is never reassigned. Use 'const' instead.  prefer-const
+243:27  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/blog-hero.tsx
+45:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/blog-post-hero.tsx
+49:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/contact-form.tsx
+271:24  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/contact-hero.tsx
+71:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/contact-info.tsx
+34:9  Error: 'supportTeam' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+87:9  Error: 'getTeamIcon' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+127:72  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/event-categories.tsx
+149:26  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+150:20  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/event-highlights.tsx
+48:59  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+133:27  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+133:51  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+187:110  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/events-carousel.tsx
+3:8  Error: 'Link' is defined but never used.  @typescript-eslint/no-unused-vars
+29:9  Error: 'getEventIcon' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+234:20  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/events-hero.tsx
+7:47  Error: 'message' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/sections/featured-galleries.tsx
+256:83  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/featured-posts.tsx
+46:19  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/gallery-categories.tsx
+19:34  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/gallery-hero.tsx
+45:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/get-involved-grid.tsx
+47:43  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+118:44  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+188:24  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+189:18  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/get-involved-section.tsx
+57:6  Warning: React Hook useEffect has a missing dependency: 'fetchGetInvolvedTemplates'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/sections/giving-faq.tsx
+257:70  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+257:90  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./src/components/sections/giving-hero.tsx
+42:31  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+53:59  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/giving-impact.tsx
+224:71  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+224:90  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+261:29  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/giving-methods.tsx
+220:104  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+364:19  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/giving-options.tsx
+99:109  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+213:28  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+289:75  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+289:78  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+
+./src/components/sections/giving-testimonials.tsx
+237:71  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+237:91  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+254:91  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+300:63  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/join-events.tsx
+27:9  Error: 'quickActions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+170:15  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+170:84  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/join-us.tsx
+170:21  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/latest-sermons.tsx
+31:31  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+58:37  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+71:30  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+88:52  Error: 'sermonsError' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+200:31  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+308:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+388:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/leadership-team-section.tsx
+108:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/leadership.tsx
+136:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+220:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+297:17  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+298:68  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/location-map.tsx
+15:15  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/media-gallery-section.tsx
+45:3  Error: 'layout' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+52:6  Warning: React Hook useEffect has a missing dependency: 'fetchCollections'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/sections/mission-vision-section.tsx
+75:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/newsletter-signup.tsx
+124:56  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/office-hours.tsx
+97:20  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+114:37  Error: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/sections/our-story.tsx
+136:19  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/our-values.tsx
+66:86  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/photo-galleries.tsx
+159:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/planned-visit-form.tsx
+62:57  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+157:15  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+157:80  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+207:58  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+274:62  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+274:137  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+291:71  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+426:38  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/sermon-preview.tsx
+17:30  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+25:10  Error: 'getEmbedUrl' is defined but never used.  @typescript-eslint/no-unused-vars
+25:30  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+34:11  Error: 'sermons' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+45:37  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+72:39  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+195:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+304:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/sermon-series.tsx
+82:31  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+262:44  Error: 'index' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./src/components/sections/sermon-topics.tsx
+170:20  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+170:36  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/sermons-archive.tsx
+29:117  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/sermons-hero.tsx
+45:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/service-times-map.tsx
+46:24  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/team-highlights-section.tsx
+100:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/testimonials.tsx
+154:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+197:17  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+197:45  Error: `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`.  react/no-unescaped-entities
+204:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/components/sections/upcoming-events.tsx
+149:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+222:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+310:20  Error: `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`.  react/no-unescaped-entities
+
+./src/components/sections/video-galleries.tsx
+148:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+185:36  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+201:93  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./src/hooks/useBlogs.ts
+111:6  Warning: React Hook useEffect has a missing dependency: 'fetchBlogs'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/hooks/useFooter.ts
+7:12  Error: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+[?25l [36m.[39m [?25h[41m[30m ELIFECYCLE [39m[49m [31mCommand failed with exit code 1.[39m

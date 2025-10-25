@@ -69,43 +69,63 @@ create policy "Allow delete access to comms_campaigns for authenticated users"
   to authenticated
   using (true);
 
--- Individual recipients for reporting & retries
-create table if not exists public.comms_recipients (
-  id              uuid primary key default gen_random_uuid(),
-  campaign_id     uuid references public.comms_campaigns(id) on delete cascade,
-  contact_id      uuid references public.contacts(id),
-  to_address      text not null,           -- email or phone or push_token
-  variables       jsonb,                   -- payload for this recipient
-  status          text not null default 'pending',  -- 'pending'|'sent'|'failed'|'delivered'|'opened'|'clicked'
-  last_error      text,
-  sent_at         timestamptz,
-  delivered_at    timestamptz,
-  opened_at       timestamptz,
-  clicked_at      timestamptz
-);
+-- Individual recipients for reporting & retries (create table conditionally)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'comms_recipients') THEN
+        CREATE TABLE public.comms_recipients (
+          id              uuid primary key default gen_random_uuid(),
+          campaign_id     uuid references public.comms_campaigns(id) on delete cascade,
+          contact_id      uuid,               -- Will add foreign key constraint later if contacts table exists
+          to_address      text not null,       -- email or phone or push_token
+          variables       jsonb,               -- payload for this recipient
+          status          text not null default 'pending',  -- 'pending'|'sent'|'failed'|'delivered'|'opened'|'clicked'
+          last_error      text,
+          sent_at         timestamptz,
+          delivered_at    timestamptz,
+          opened_at       timestamptz,
+          clicked_at      timestamptz
+        );
 
--- Add RLS policies for comms_recipients
-alter table public.comms_recipients enable row level security;
+        -- Add RLS policies for comms_recipients
+        ALTER TABLE public.comms_recipients ENABLE ROW LEVEL SECURITY;
 
-create policy "Allow read access to comms_recipients for authenticated users"
-  on public.comms_recipients for select
-  to authenticated
-  using (true);
+        CREATE POLICY "Allow read access to comms_recipients for authenticated users"
+          ON public.comms_recipients FOR SELECT
+          TO authenticated
+          USING (true);
 
-create policy "Allow insert access to comms_recipients for authenticated users"
-  on public.comms_recipients for insert
-  to authenticated
-  with check (true);
+        CREATE POLICY "Allow insert access to comms_recipients for authenticated users"
+          ON public.comms_recipients FOR INSERT
+          TO authenticated
+          WITH CHECK (true);
 
-create policy "Allow update access to comms_recipients for authenticated users"
-  on public.comms_recipients for update
-  to authenticated
-  using (true);
+        CREATE POLICY "Allow update access to comms_recipients for authenticated users"
+          ON public.comms_recipients FOR UPDATE
+          TO authenticated
+          USING (true);
 
-create policy "Allow delete access to comms_recipients for authenticated users"
-  on public.comms_recipients for delete
-  to authenticated
-  using (true);
+        CREATE POLICY "Allow delete access to comms_recipients for authenticated users"
+          ON public.comms_recipients FOR DELETE
+          TO authenticated
+          USING (true);
+    END IF;
+
+    -- Add foreign key constraint if contacts table exists
+    IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'contacts') THEN
+        -- Check if the constraint doesn't already exist
+        IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints 
+            WHERE constraint_name = 'comms_recipients_contact_id_fkey' 
+            AND table_name = 'comms_recipients'
+        ) THEN
+            ALTER TABLE public.comms_recipients 
+            ADD CONSTRAINT comms_recipients_contact_id_fkey 
+            FOREIGN KEY (contact_id) REFERENCES public.contacts(id);
+        END IF;
+    END IF;
+END
+$$;
 
 -- Add trigger for updated_at
 CREATE OR REPLACE FUNCTION update_modified_column()

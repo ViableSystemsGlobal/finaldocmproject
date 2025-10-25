@@ -11,6 +11,7 @@ export interface MetricCardProps {
   loading?: boolean
   className?: string
   formatter?: 'currency' | 'number' | 'percentage'
+  secondaryValue?: string
   trend?: {
     value: number
     label: string
@@ -24,6 +25,7 @@ export function MetricCard({
   loading = false,
   className = '',
   formatter = 'currency',
+  secondaryValue,
   trend,
 }: MetricCardProps) {
   // Format the value based on the formatter type
@@ -58,6 +60,9 @@ export function MetricCard({
           ) : (
             <div>
               <p className="text-2xl font-bold">{formattedValue()}</p>
+              {secondaryValue && (
+                <p className="text-sm text-muted-foreground">{secondaryValue}</p>
+              )}
               {trend && (
                 <div className="mt-1 flex items-center text-xs">
                   <span className={trend.value >= 0 ? 'text-green-600' : 'text-red-600'}>

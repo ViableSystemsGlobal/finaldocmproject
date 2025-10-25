@@ -1,0 +1,1573 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { 
+  Sparkles, 
+  Plus, 
+  Edit, 
+  Trash2, 
+  ArrowLeft,
+  Loader2,
+  Play,
+  Pause,
+  Clock,
+  Mail,
+  MessageCircle,
+  UserPlus,
+  Users,
+  Settings as SettingsIcon,
+  ArrowRight,
+  Copy,
+  Calendar,
+  Zap
+} from 'lucide-react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form'
+import { Badge } from '@/components/ui/badge'
+import { toast } from '@/components/ui/use-toast'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import * as z from 'zod'
+import { 
+  fetchWorkflows, 
+  createWorkflow,
+  updateWorkflow,
+  deleteWorkflow,
+  createWorkflowStep,
+  updateWorkflowStep,
+  deleteWorkflowStep,
+  type Workflow,
+  type WorkflowStep 
+} from '@/services/settings'
+
+const workflowSchema = z.object({
+  name: z.string().min(1, 'Workflow name is required'),
+  description: z.string().optional(),
+  trigger_type: z.enum(['on_create', 'on_update', 'scheduled', 'manual']),
+  trigger_config: z.record(z.any()).optional(),
+  is_active: z.boolean(),
+})
+
+const entityOptions = [
+  { value: 'contacts', label: 'Contacts', description: 'People in your database' },
+  { value: 'members', label: 'Members', description: 'Church members' },
+  { value: 'visitors', label: 'Visitors', description: 'First-time visitors' },
+  { value: 'events', label: 'Events', description: 'Church events and activities' },
+  { value: 'registrations', label: 'Event Registrations', description: 'Event sign-ups' },
+]
+
+const fieldOptions = [
+  { value: 'lifecycle', label: 'Lifecycle Status', description: 'visitor → member → inactive' },
+  { value: 'membership_status', label: 'Membership Status', description: 'active → inactive → removed' },
+  { value: 'contact_preference', label: 'Contact Preference', description: 'email → sms → phone' },
+  { value: 'address', label: 'Address', description: 'Address changes' },
+  { value: 'phone', label: 'Phone Number', description: 'Phone number updates' },
+]
+
+const scheduleOptions = [
+  { value: 'daily_9am', label: 'Daily at 9:00 AM', cron: '0 9 * * *' },
+  { value: 'daily_6pm', label: 'Daily at 6:00 PM', cron: '0 18 * * *' },
+  { value: 'weekly_sunday_9am', label: 'Weekly on Sunday at 9:00 AM', cron: '0 9 * * 0' },
+  { value: 'weekly_friday_5pm', label: 'Weekly on Friday at 5:00 PM', cron: '0 17 * * 5' },
+  { value: 'monthly_1st', label: 'Monthly on 1st at 9:00 AM', cron: '0 9 1 * *' },
+  { value: 'custom', label: 'Custom Schedule', cron: '' },
+]
+
+type WorkflowFormData = z.infer<typeof workflowSchema>
+
+const triggerTypes = [
+  { 
+    value: 'on_create', 
+    label: 'When Created', 
+    description: 'Trigger when a new record is created',
+    icon: UserPlus 
+  },
+  { 
+    value: 'on_update', 
+    label: 'When Updated', 
+    description: 'Trigger when a record is updated',
+    icon: Edit 
+  },
+  { 
+    value: 'scheduled', 
+    label: 'Scheduled', 
+    description: 'Trigger on a schedule (daily, weekly, etc.)',
+    icon: Calendar 
+  },
+  { 
+    value: 'manual', 
+    label: 'Manual', 
+    description: 'Manually triggered by staff',
+    icon: Play 
+  },
+]
+
+const stepTypes = [
+  {
+    type: 'delay',
+    label: 'Wait/Delay',
+    description: 'Wait for a specified time before continuing',
+    icon: Clock,
+    color: 'from-slate-500 to-gray-600'
+  },
+  {
+    type: 'send_email',
+    label: 'Send Email',
+    description: 'Send an email to the person or staff',
+    icon: Mail,
+    color: 'from-blue-500 to-indigo-600'
+  },
+  {
+    type: 'send_sms',
+    label: 'Send SMS',
+    description: 'Send an SMS message',
+    icon: MessageCircle,
+    color: 'from-green-500 to-emerald-600'
+  },
+  {
+    type: 'create_follow_up',
+    label: 'Create Follow-up',
+    description: 'Create a follow-up task for staff',
+    icon: UserPlus,
+    color: 'from-purple-500 to-violet-600'
+  },
+  {
+    type: 'assign_group',
+    label: 'Assign to Group',
+    description: 'Add person to a specific group',
+    icon: Users,
+    color: 'from-orange-500 to-red-600'
+  },
+  {
+    type: 'update_field',
+    label: 'Update Field',
+    description: 'Update a field on the record',
+    icon: SettingsIcon,
+    color: 'from-amber-500 to-yellow-600'
+  },
+]
+
+export default function WorkflowsPage() {
+  const [workflows, setWorkflows] = useState<Workflow[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [editDialog, setEditDialog] = useState<{
+    open: boolean
+    workflow: Workflow | null
+  }>({ open: false, workflow: null })
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean
+    workflow: Workflow | null
+  }>({ open: false, workflow: null })
+  const [builderDialog, setBuilderDialog] = useState<{
+    open: boolean
+    workflow: Workflow | null
+  }>({ open: false, workflow: null })
+  const [workflowSteps, setWorkflowSteps] = useState<WorkflowStep[]>([])
+  const [draggedStep, setDraggedStep] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isSavingSteps, setIsSavingSteps] = useState(false)
+  const [editStepDialog, setEditStepDialog] = useState<{
+    open: boolean
+    step: WorkflowStep | null
+  }>({ open: false, step: null })
+
+  const form = useForm<WorkflowFormData>({
+    resolver: zodResolver(workflowSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      trigger_type: 'on_create',
+      trigger_config: {},
+      is_active: true,
+    },
+  })
+
+  useEffect(() => {
+    loadWorkflows()
+  }, [])
+
+  useEffect(() => {
+    if (builderDialog.workflow && builderDialog.open) {
+      setWorkflowSteps(builderDialog.workflow.steps || [])
+    } else {
+      setWorkflowSteps([])
+    }
+  }, [builderDialog.workflow, builderDialog.open])
+
+  async function loadWorkflows() {
+    try {
+      setIsLoading(true)
+      const { success, data, error } = await fetchWorkflows()
+      
+      if (success && data) {
+        setWorkflows(data)
+      } else {
+        console.error('Error loading workflows:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to load workflows. Please try again.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function openEditDialog(workflow?: Workflow) {
+    if (workflow) {
+      form.reset({
+        name: workflow.name,
+        description: workflow.description || '',
+        trigger_type: workflow.trigger_type,
+        trigger_config: workflow.trigger_config || {},
+        is_active: workflow.is_active,
+      })
+    } else {
+      form.reset({
+        name: '',
+        description: '',
+        trigger_type: 'on_create',
+        trigger_config: {},
+        is_active: true,
+      })
+    }
+    setEditDialog({ open: true, workflow: workflow || null })
+  }
+
+  async function onSubmit(data: WorkflowFormData) {
+    try {
+      setIsSubmitting(true)
+      
+      let result
+      if (editDialog.workflow) {
+        // Update existing workflow
+        result = await updateWorkflow(editDialog.workflow.id, data)
+      } else {
+        // Create new workflow
+        result = await createWorkflow(data)
+      }
+      
+      if (result.success) {
+        toast({
+          title: editDialog.workflow ? 'Workflow updated' : 'Workflow created',
+          description: `Workflow "${data.name}" has been ${editDialog.workflow ? 'updated' : 'created'} successfully.`,
+        })
+        setEditDialog({ open: false, workflow: null })
+        loadWorkflows()
+      } else {
+        console.error('Error saving workflow:', result.error)
+        toast({
+          title: 'Error',
+          description: 'Failed to save workflow. Please try again.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function handleDeleteWorkflow() {
+    if (!deleteDialog.workflow) return
+
+    try {
+      setIsDeleting(true)
+      const { success, error } = await deleteWorkflow(deleteDialog.workflow.id)
+      
+      if (success) {
+        setWorkflows(prev => prev.filter(w => w.id !== deleteDialog.workflow?.id))
+        toast({
+          title: 'Workflow deleted',
+          description: 'The workflow has been deleted successfully.',
+        })
+        setDeleteDialog({ open: false, workflow: null })
+      } else {
+        console.error('Error deleting workflow:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to delete workflow. Please try again.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  async function toggleWorkflowStatus(workflow: Workflow) {
+    try {
+      const { success, error } = await updateWorkflow(workflow.id, {
+        is_active: !workflow.is_active
+      })
+      
+      if (success) {
+        setWorkflows(prev => prev.map(w => 
+          w.id === workflow.id ? { ...w, is_active: !w.is_active } : w
+        ))
+        toast({
+          title: `Workflow ${!workflow.is_active ? 'activated' : 'paused'}`,
+          description: `Workflow "${workflow.name}" has been ${!workflow.is_active ? 'activated' : 'paused'}.`,
+        })
+      } else {
+        console.error('Error updating workflow status:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to update workflow status. Please try again.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      toast({
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  function getTriggerIcon(triggerType: string) {
+    const trigger = triggerTypes.find(t => t.value === triggerType)
+    return trigger?.icon || Play
+  }
+
+  // Workflow Builder Functions
+  function addStepToWorkflow(stepType: string) {
+    if (!builderDialog.workflow) return
+    
+    const newStep: WorkflowStep = {
+      id: `temp-${Date.now()}`,
+      workflow_id: builderDialog.workflow.id,
+      step_type: stepType as any,
+      config: getDefaultStepConfig(stepType),
+      order: workflowSteps.length + 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+    
+    setWorkflowSteps(prev => [...prev, newStep])
+  }
+
+  function getDefaultStepConfig(stepType: string) {
+    switch (stepType) {
+      case 'delay':
+        return { duration: 24, unit: 'hours' }
+      case 'send_email':
+        return { template: 'welcome_member', to: 'person' }
+      case 'send_sms':
+        return { message: 'Hello {{ first_name }}, welcome!', to: 'person' }
+      case 'create_follow_up':
+        return { title: 'Follow up with new member', assigned_to: 'admin' }
+      case 'assign_group':
+        return { group_name: 'New Members' }
+      case 'update_field':
+        return { field: 'lifecycle', value: 'member' }
+      default:
+        return {}
+    }
+  }
+
+  function removeStepFromWorkflow(stepId: string) {
+    setWorkflowSteps(prev => prev.filter(step => step.id !== stepId))
+  }
+
+  function moveStep(stepId: string, direction: 'up' | 'down') {
+    setWorkflowSteps(prev => {
+      const steps = [...prev]
+      const index = steps.findIndex(step => step.id === stepId)
+      
+      if (index === -1) return prev
+      
+      const newIndex = direction === 'up' ? index - 1 : index + 1
+      if (newIndex < 0 || newIndex >= steps.length) return prev
+      
+      // Swap steps
+      const temp = steps[index]
+      steps[index] = steps[newIndex]
+      steps[newIndex] = temp
+      
+      // Update order values
+      return steps.map((step, idx) => ({ ...step, order: idx + 1 }))
+    })
+  }
+
+  async function saveWorkflowSteps() {
+    if (!builderDialog.workflow) return
+    
+    try {
+      setIsSavingSteps(true)
+      
+      // Save each step
+      for (const step of workflowSteps) {
+        if (step.id.startsWith('temp-')) {
+          // Create new step
+          await createWorkflowStep({
+            workflow_id: builderDialog.workflow.id,
+            step_type: step.step_type,
+            config: step.config,
+            order: step.order,
+          })
+        } else {
+          // Update existing step
+          await updateWorkflowStep(step.id, {
+            config: step.config,
+            order: step.order,
+          })
+        }
+      }
+      
+      toast({
+        title: 'Workflow updated',
+        description: 'The workflow steps have been saved successfully.',
+      })
+      
+      setBuilderDialog({ open: false, workflow: null })
+      loadWorkflows()
+    } catch (error) {
+      console.error('Error saving workflow steps:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to save workflow steps. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingSteps(false)
+    }
+  }
+
+  async function createWorkflowFromTemplate(templateType: string) {
+    try {
+      setIsSubmitting(true)
+      
+      let workflowData: Omit<Workflow, 'id' | 'created_at' | 'updated_at' | 'steps'>
+      
+      switch (templateType) {
+        case 'visitor_followup':
+          workflowData = {
+            name: 'New Visitor Follow-up',
+            description: 'Automatically follow up with new visitors within 24 hours',
+            trigger_type: 'on_create',
+            trigger_config: { entity: 'visitors' },
+            is_active: true,
+          }
+          break
+        case 'birthday_greetings':
+          workflowData = {
+            name: 'Birthday Greetings',
+            description: 'Send birthday wishes to members automatically',
+            trigger_type: 'scheduled',
+            trigger_config: { cron: '0 9 * * *', check_birthdays: true },
+            is_active: true,
+          }
+          break
+        case 'event_reminders':
+          workflowData = {
+            name: 'Event Reminders',
+            description: 'Send event reminders 1 day and 1 hour before',
+            trigger_type: 'scheduled',
+            trigger_config: { cron: '0 * * * *', check_events: true },
+            is_active: true,
+          }
+          break
+        default:
+          return
+      }
+      
+      const result = await createWorkflow(workflowData)
+      
+      if (result.success && result.data) {
+        toast({
+          title: 'Template created',
+          description: `"${workflowData.name}" workflow has been created from template. Use the workflow builder to add steps.`,
+        })
+        
+        loadWorkflows()
+      } else {
+        throw new Error(result.error || 'Failed to create workflow')
+      }
+    } catch (error) {
+      console.error('Error creating workflow from template:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to create workflow from template. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  function getTemplateSteps(templateType: string) {
+    switch (templateType) {
+      case 'visitor_followup':
+        return [
+          {
+            step_type: 'delay' as any,
+            config: { duration: 24, unit: 'hours' }
+          },
+          {
+            step_type: 'send_email' as any,
+            config: { template: 'follow_up_visitor', to: 'person' }
+          },
+          {
+            step_type: 'create_follow_up' as any,
+            config: { title: 'Follow up with visitor', assigned_to: 'admin' }
+          }
+        ]
+      case 'birthday_greetings':
+        return [
+          {
+            step_type: 'send_email' as any,
+            config: { template: 'birthday_reminder', to: 'person' }
+          }
+        ]
+      case 'event_reminders':
+        return [
+          {
+            step_type: 'send_email' as any,
+            config: { template: 'event_reminder', to: 'person', timing: '1_day_before' }
+          },
+          {
+            step_type: 'send_sms' as any,
+            config: { message: 'Reminder: {{ event_name }} starts in 1 hour!', to: 'person', timing: '1_hour_before' }
+          }
+        ]
+      default:
+        return []
+    }
+  }
+
+  // Step editing functions
+  function openStepEditDialog(step: WorkflowStep) {
+    setEditStepDialog({ open: true, step })
+  }
+
+  function updateStepConfig(stepId: string, newConfig: any) {
+    setWorkflowSteps(prev => prev.map(step => 
+      step.id === stepId 
+        ? { ...step, config: { ...step.config, ...newConfig } }
+        : step
+    ))
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+          <span className="text-lg text-slate-600">Loading workflows...</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Header */}
+      <div className="relative bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-700 overflow-hidden">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-violet-600/90 via-purple-600/90 to-indigo-700/90" />
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="flex items-center space-x-4 mb-6">
+            <Button 
+              asChild 
+              variant="ghost" 
+              size="sm"
+              className="text-white hover:text-white hover:bg-white/20 backdrop-blur-sm"
+            >
+              <Link href="/settings">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Settings
+              </Link>
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-bold text-white">
+                  Workflow Automation
+                </h1>
+                <p className="text-xl text-violet-100 mt-2">
+                  Automate follow-ups and communication sequences
+                </p>
+              </div>
+            </div>
+            
+            <Dialog open={editDialog.open} onOpenChange={(open) => setEditDialog({ open, workflow: null })}>
+              <DialogTrigger asChild>
+                <Button 
+                  onClick={() => openEditDialog()}
+                  className="bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm shadow-lg"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Workflow
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-white/95 backdrop-blur-sm max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editDialog.workflow ? 'Edit Workflow' : 'Create New Workflow'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editDialog.workflow 
+                      ? 'Update the workflow details below.'
+                      : 'Create an automated workflow to streamline your processes.'
+                    }
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Workflow Name *</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="e.g., New Visitor Follow-up, Birthday Greetings" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Description</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Describe what this workflow does..."
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="trigger_type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Trigger Type *</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select trigger type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {triggerTypes.map((trigger) => (
+                                <SelectItem key={trigger.value} value={trigger.value}>
+                                  <div className="flex items-center space-x-2">
+                                    <trigger.icon className="w-4 h-4" />
+                                    <div>
+                                      <div className="font-medium">{trigger.label}</div>
+                                      <div className="text-xs text-slate-500">{trigger.description}</div>
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Conditional Configuration based on Trigger Type */}
+                    {form.watch('trigger_type') === 'on_create' && (
+                      <div className="space-y-4 p-4 bg-violet-50 rounded-lg border border-violet-200">
+                        <h3 className="font-medium text-violet-900">When Created Configuration</h3>
+                        <div className="grid gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Entity Type *</label>
+                            <Select 
+                              onValueChange={(value) => {
+                                const currentConfig = form.getValues('trigger_config') || {}
+                                form.setValue('trigger_config', { ...currentConfig, entity: value })
+                              }}
+                              defaultValue={form.getValues('trigger_config')?.entity}
+                            >
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select what triggers this workflow" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {entityOptions.map((entity) => (
+                                  <SelectItem key={entity.value} value={entity.value}>
+                                    <div>
+                                      <div className="font-medium">{entity.label}</div>
+                                      <div className="text-xs text-slate-500">{entity.description}</div>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {form.watch('trigger_type') === 'on_update' && (
+                      <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <h3 className="font-medium text-blue-900">When Updated Configuration</h3>
+                        <div className="grid gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Entity Type *</label>
+                            <Select 
+                              onValueChange={(value) => {
+                                const currentConfig = form.getValues('trigger_config') || {}
+                                form.setValue('trigger_config', { ...currentConfig, entity: value })
+                              }}
+                              defaultValue={form.getValues('trigger_config')?.entity}
+                            >
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select what entity to monitor" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {entityOptions.map((entity) => (
+                                  <SelectItem key={entity.value} value={entity.value}>
+                                    <div>
+                                      <div className="font-medium">{entity.label}</div>
+                                      <div className="text-xs text-slate-500">{entity.description}</div>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Field to Monitor</label>
+                            <Select 
+                              onValueChange={(value) => {
+                                const currentConfig = form.getValues('trigger_config') || {}
+                                form.setValue('trigger_config', { ...currentConfig, field: value })
+                              }}
+                              defaultValue={form.getValues('trigger_config')?.field}
+                            >
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select field to monitor for changes" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {fieldOptions.map((field) => (
+                                  <SelectItem key={field.value} value={field.value}>
+                                    <div>
+                                      <div className="font-medium">{field.label}</div>
+                                      <div className="text-xs text-slate-500">{field.description}</div>
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {form.watch('trigger_type') === 'scheduled' && (
+                      <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h3 className="font-medium text-green-900">Schedule Configuration</h3>
+                        <div className="grid gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Schedule *</label>
+                            <Select 
+                              onValueChange={(value) => {
+                                const currentConfig = form.getValues('trigger_config') || {}
+                                const selectedSchedule = scheduleOptions.find(s => s.value === value)
+                                form.setValue('trigger_config', { 
+                                  ...currentConfig, 
+                                  schedule: value,
+                                  cron: selectedSchedule?.cron || ''
+                                })
+                              }}
+                              defaultValue={form.getValues('trigger_config')?.schedule}
+                            >
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select when to run this workflow" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {scheduleOptions.map((schedule) => (
+                                  <SelectItem key={schedule.value} value={schedule.value}>
+                                    <div>
+                                      <div className="font-medium">{schedule.label}</div>
+                                      {schedule.cron && (
+                                        <div className="text-xs text-slate-500">Cron: {schedule.cron}</div>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {form.getValues('trigger_config')?.schedule === 'custom' && (
+                            <div>
+                              <label className="text-sm font-medium text-slate-700">Custom Cron Expression</label>
+                              <Input 
+                                placeholder="0 9 * * * (9:00 AM daily)"
+                                onChange={(e) => {
+                                  const currentConfig = form.getValues('trigger_config') || {}
+                                  form.setValue('trigger_config', { ...currentConfig, cron: e.target.value })
+                                }}
+                                defaultValue={form.getValues('trigger_config')?.cron}
+                                className="bg-white"
+                              />
+                              <p className="text-xs text-slate-500 mt-1">
+                                Format: minute hour day month day-of-week
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {form.watch('trigger_type') === 'manual' && (
+                      <div className="space-y-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <h3 className="font-medium text-amber-900">Manual Trigger Configuration</h3>
+                        <div className="grid gap-4">
+                          <div>
+                            <label className="text-sm font-medium text-slate-700">Who can trigger this workflow?</label>
+                            <Select 
+                              onValueChange={(value) => {
+                                const currentConfig = form.getValues('trigger_config') || {}
+                                form.setValue('trigger_config', { ...currentConfig, allowed_roles: [value] })
+                              }}
+                              defaultValue={form.getValues('trigger_config')?.allowed_roles?.[0]}
+                            >
+                              <SelectTrigger className="bg-white">
+                                <SelectValue placeholder="Select who can run this workflow" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Admins Only</SelectItem>
+                                <SelectItem value="staff">Staff Members</SelectItem>
+                                <SelectItem value="finance">Finance Team</SelectItem>
+                                <SelectItem value="everyone">All Users</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="text-xs text-slate-600 bg-white p-3 rounded border">
+                            <strong>Manual workflows</strong> can be triggered by clicking a button in the interface. 
+                            They're useful for one-time actions like sending special announcements or processing 
+                            specific member groups.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <FormField
+                      control={form.control}
+                      name="is_active"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Active Workflow
+                            </FormLabel>
+                            <FormDescription>
+                              Enable this workflow to start processing automatically
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    <DialogFooter>
+                      <Button 
+                        type="button"
+                        variant="outline" 
+                        onClick={() => setEditDialog({ open: false, workflow: null })}
+                        disabled={isSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        type="submit" 
+                        disabled={isSubmitting}
+                        className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {editDialog.workflow ? 'Updating...' : 'Creating...'}
+                          </>
+                        ) : (
+                          <>
+                            {editDialog.workflow ? 'Update' : 'Create'} Workflow
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </div>
+          
+          <div className="flex flex-wrap gap-4 text-sm text-violet-100 mt-4">
+            <span>• Automated Follow-ups</span>
+            <span>• Email & SMS Sequences</span>
+            <span>• Task Creation</span>
+            <span>• Conditional Logic</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {workflows.length === 0 ? (
+          <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <div className="p-4 bg-violet-100 rounded-full mb-4">
+                <Sparkles className="w-8 h-8 text-violet-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-slate-900 mb-2">No Workflows Yet</h3>
+              <p className="text-slate-600 text-center max-w-md mb-6">
+                Start automating your processes! Create workflows to handle visitor follow-ups, birthday greetings, and more.
+              </p>
+              <Button 
+                onClick={() => openEditDialog()}
+                className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Your First Workflow
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {/* Quick Templates */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader className="border-b border-slate-200/50">
+                <CardTitle className="flex items-center space-x-2">
+                  <Zap className="w-5 h-5 text-violet-600" />
+                  <span>Quick Start Templates</span>
+                </CardTitle>
+                <CardDescription>
+                  Common workflow templates to get you started
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="p-4 border border-dashed border-violet-200 rounded-lg hover:bg-violet-50 cursor-pointer transition-colors">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <UserPlus className="w-5 h-5 text-violet-600" />
+                      <h4 className="font-medium">New Visitor Follow-up</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Automatically follow up with new visitors within 24 hours
+                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => createWorkflowFromTemplate('visitor_followup')}
+                      disabled={isSubmitting}
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Use Template
+                    </Button>
+                  </div>
+
+                  <div className="p-4 border border-dashed border-violet-200 rounded-lg hover:bg-violet-50 cursor-pointer transition-colors">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <Calendar className="w-5 h-5 text-violet-600" />
+                      <h4 className="font-medium">Birthday Greetings</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Send birthday wishes to members automatically
+                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => createWorkflowFromTemplate('birthday_greetings')}
+                      disabled={isSubmitting}
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Use Template
+                    </Button>
+                  </div>
+
+                  <div className="p-4 border border-dashed border-violet-200 rounded-lg hover:bg-violet-50 cursor-pointer transition-colors">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <Mail className="w-5 h-5 text-violet-600" />
+                      <h4 className="font-medium">Event Reminders</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Send event reminders 1 day and 1 hour before
+                    </p>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => createWorkflowFromTemplate('event_reminders')}
+                      disabled={isSubmitting}
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Use Template
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Workflows Table */}
+            <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+              <CardHeader className="border-b border-slate-200/50">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Sparkles className="w-5 h-5 text-violet-600" />
+                      <span>Your Workflows</span>
+                    </CardTitle>
+                    <CardDescription>
+                      Manage your automated workflows and sequences
+                    </CardDescription>
+                  </div>
+                  <Badge variant="secondary" className="bg-violet-100 text-violet-800 border-violet-200">
+                    {workflows.filter(w => w.is_active).length} Active
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-200/50">
+                      <TableHead>Workflow</TableHead>
+                      <TableHead>Trigger</TableHead>
+                      <TableHead>Steps</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workflows.map((workflow) => {
+                      const TriggerIcon = getTriggerIcon(workflow.trigger_type)
+                      return (
+                        <TableRow key={workflow.id} className="border-slate-200/50">
+                          <TableCell>
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-violet-100 rounded-lg">
+                                <Sparkles className="w-4 h-4 text-violet-600" />
+                              </div>
+                              <div>
+                                <div className="font-medium text-slate-900">
+                                  {workflow.name}
+                                </div>
+                                <div className="text-sm text-slate-500">
+                                  {workflow.description || 'No description'}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <TriggerIcon className="w-4 h-4 text-slate-500" />
+                              <span className="text-sm capitalize">
+                                {workflow.trigger_type.replace('_', ' ')}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {workflow.steps?.length || 0} steps
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              {workflow.is_active ? (
+                                <Badge className="bg-green-100 text-green-800 border-green-200">
+                                  <Play className="w-3 h-3 mr-1" />
+                                  Active
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-slate-100 text-slate-800 border-slate-200">
+                                  <Pause className="w-3 h-3 mr-1" />
+                                  Paused
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end space-x-2">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setBuilderDialog({ open: true, workflow })}
+                                className="text-slate-600 hover:text-slate-900"
+                              >
+                                <SettingsIcon className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => toggleWorkflowStatus(workflow)}
+                                className="text-slate-600 hover:text-slate-900"
+                              >
+                                {workflow.is_active ? (
+                                  <Pause className="w-4 h-4" />
+                                ) : (
+                                  <Play className="w-4 h-4" />
+                                )}
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => openEditDialog(workflow)}
+                                className="text-slate-600 hover:text-slate-900"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setDeleteDialog({ open: true, workflow })}
+                                className="text-red-600 hover:text-red-900 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* Workflow Builder Dialog */}
+      <Dialog open={builderDialog.open} onOpenChange={(open) => setBuilderDialog({ open, workflow: null })}>
+        <DialogContent className="bg-white/95 backdrop-blur-sm max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <Sparkles className="w-5 h-5 text-violet-600" />
+              <span>Workflow Builder</span>
+            </DialogTitle>
+            <DialogDescription>
+              {builderDialog.workflow && (
+                <>Design the steps for "{builderDialog.workflow.name}" workflow</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Step Types Palette */}
+            <div>
+              <h3 className="font-medium mb-4">Available Actions</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {stepTypes.map((stepType) => {
+                  const Icon = stepType.icon
+                  return (
+                    <div
+                      key={stepType.type}
+                      onClick={() => addStepToWorkflow(stepType.type)}
+                      className={`p-3 rounded-lg border-2 border-dashed border-slate-200 hover:border-violet-300 cursor-pointer transition-colors bg-gradient-to-br ${stepType.color} text-white hover:scale-105`}
+                    >
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Icon className="w-4 h-4" />
+                        <span className="font-medium text-sm">{stepType.label}</span>
+                      </div>
+                      <p className="text-xs opacity-90">{stepType.description}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Workflow Canvas */}
+            <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 min-h-[400px] bg-slate-50">
+              {workflowSteps.length === 0 ? (
+                <div className="text-center text-slate-500 py-16">
+                  <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">Workflow Canvas</h3>
+                  <p className="text-sm">Click on actions above to build your workflow sequence</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <h3 className="font-medium mb-4">Workflow Steps</h3>
+                  
+                  {/* Trigger Step */}
+                  <div className="flex items-center space-x-4 p-4 bg-white rounded-lg border border-slate-200">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-gradient-to-r from-violet-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <Play className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-slate-900">Trigger</div>
+                      <div className="text-sm text-slate-500 capitalize">
+                        {builderDialog.workflow?.trigger_type.replace('_', ' ')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Arrow */}
+                  {workflowSteps.length > 0 && (
+                    <div className="flex justify-center">
+                      <div className="w-5 h-5 text-slate-400 flex items-center justify-center">↓</div>
+                    </div>
+                  )}
+
+                  {/* Workflow Steps */}
+                  {workflowSteps.map((step, index) => {
+                    const stepType = stepTypes.find(st => st.type === step.step_type)
+                    const Icon = stepType?.icon || SettingsIcon
+                    
+                    return (
+                      <div key={step.id} className="space-y-2">
+                        <div className="flex items-center space-x-4 p-4 bg-white rounded-lg border border-slate-200 hover:border-violet-200 transition-colors">
+                          <div className="flex-shrink-0">
+                            <div className={`w-8 h-8 bg-gradient-to-r ${stepType?.color || 'from-slate-500 to-gray-600'} rounded-full flex items-center justify-center`}>
+                              <Icon className="w-4 h-4 text-white" />
+                            </div>
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-slate-900">
+                              {stepType?.label || step.step_type}
+                            </div>
+                            <div className="text-sm text-slate-500">
+                              {step.step_type === 'delay' && `Wait ${step.config.duration} ${step.config.unit}`}
+                              {step.step_type === 'send_email' && `Send email: ${step.config.template}`}
+                              {step.step_type === 'send_sms' && 'Send SMS message'}
+                              {step.step_type === 'create_follow_up' && step.config.title}
+                              {step.step_type === 'assign_group' && `Add to ${step.config.group_name}`}
+                              {step.step_type === 'update_field' && `Update ${step.config.field} to ${step.config.value}`}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openStepEditDialog(step)}
+                              className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title="Edit step"
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveStep(step.id, 'up')}
+                              disabled={index === 0}
+                              className="h-8 w-8 p-0"
+                            >
+                              ↑
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => moveStep(step.id, 'down')}
+                              disabled={index === workflowSteps.length - 1}
+                              className="h-8 w-8 p-0"
+                            >
+                              ↓
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeStepFromWorkflow(step.id)}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {/* Arrow between steps */}
+                        {index < workflowSteps.length - 1 && (
+                          <div className="flex justify-center">
+                            <div className="w-5 h-5 text-slate-400 flex items-center justify-center">↓</div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setBuilderDialog({ open: false, workflow: null })}
+            >
+              Close
+            </Button>
+            <Button 
+              onClick={saveWorkflowSteps}
+              disabled={isSavingSteps}
+              className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white"
+            >
+              {isSavingSteps ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Workflow'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Step Edit Dialog */}
+      <Dialog open={editStepDialog.open} onOpenChange={(open) => setEditStepDialog({ open, step: null })}>
+        <DialogContent className="bg-white/95 backdrop-blur-sm max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Step</DialogTitle>
+            <DialogDescription>
+              Configure the settings for this workflow step.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editStepDialog.step && (
+            <div className="space-y-4">
+              {editStepDialog.step.step_type === 'send_email' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Email Template</label>
+                    <Input 
+                      defaultValue={editStepDialog.step.config.template || 'birthday_greeting'}
+                      onChange={(e) => updateStepConfig(editStepDialog.step.id, { template: e.target.value })}
+                      placeholder="e.g., birthday_greeting, welcome_email"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Send To</label>
+                    <Select 
+                      defaultValue={editStepDialog.step.config.to || 'person'}
+                      onValueChange={(value) => updateStepConfig(editStepDialog.step.id, { to: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="person">The person</SelectItem>
+                        <SelectItem value="admin">Admin/Staff</SelectItem>
+                        <SelectItem value="pastor">Pastor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              
+              {editStepDialog.step.step_type === 'delay' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Duration</label>
+                    <Input 
+                      type="number"
+                      defaultValue={editStepDialog.step.config.duration || 24}
+                      onChange={(e) => updateStepConfig(editStepDialog.step.id, { duration: parseInt(e.target.value) })}
+                      placeholder="24"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Time Unit</label>
+                    <Select 
+                      defaultValue={editStepDialog.step.config.unit || 'hours'}
+                      onValueChange={(value) => updateStepConfig(editStepDialog.step.id, { unit: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="minutes">Minutes</SelectItem>
+                        <SelectItem value="hours">Hours</SelectItem>
+                        <SelectItem value="days">Days</SelectItem>
+                        <SelectItem value="weeks">Weeks</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+              
+              {editStepDialog.step.step_type === 'send_sms' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">SMS Message</label>
+                    <Textarea 
+                      defaultValue={editStepDialog.step.config.message || 'Happy Birthday! 🎂'}
+                      onChange={(e) => updateStepConfig(editStepDialog.step.id, { message: e.target.value })}
+                      placeholder="Type your SMS message..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {editStepDialog.step.step_type === 'create_follow_up' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium">Follow-up Title</label>
+                    <Input 
+                      defaultValue={editStepDialog.step.config.title || 'Follow up required'}
+                      onChange={(e) => updateStepConfig(editStepDialog.step.id, { title: e.target.value })}
+                      placeholder="Follow-up task title"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Assign To</label>
+                    <Select 
+                      defaultValue={editStepDialog.step.config.assigned_to || 'admin'}
+                      onValueChange={(value) => updateStepConfig(editStepDialog.step.id, { assigned_to: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="pastor">Pastor</SelectItem>
+                        <SelectItem value="department_lead">Department Lead</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setEditStepDialog({ open: false, step: null })}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => setEditStepDialog({ open: false, step: null })}
+              className="bg-violet-600 hover:bg-violet-700"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Dialog */}
+      <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, workflow: null })}>
+        <DialogContent className="bg-white/95 backdrop-blur-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Workflow</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteDialog.workflow?.name}"? This action cannot be undone and will stop all running instances.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteDialog({ open: false, workflow: null })}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteWorkflow}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Workflow
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+

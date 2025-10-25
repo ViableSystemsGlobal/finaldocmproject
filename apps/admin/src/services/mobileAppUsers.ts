@@ -74,6 +74,8 @@ export async function fetchAppUsers() {
 }
 
 export async function fetchAppUser(id: string) {
+  console.log('🔍 Fetching mobile app user with ID:', id);
+  
   // First get the mobile app user
   const { data: mobileUser, error: mobileUserError } = await supabase
     .from('mobile_app_users')
@@ -82,14 +84,25 @@ export async function fetchAppUser(id: string) {
     .single();
 
   if (mobileUserError) {
+    console.error('❌ Error fetching mobile app user:', {
+      error: mobileUserError,
+      message: mobileUserError.message,
+      details: mobileUserError.details,
+      hint: mobileUserError.hint,
+      code: mobileUserError.code
+    });
     return { data: null, error: mobileUserError };
   }
 
+  console.log('✅ Mobile app user found:', { id: mobileUser.id, contact_id: mobileUser.contact_id });
+
   if (!mobileUser.contact_id) {
+    console.log('ℹ️ No contact_id found, returning user without contact info');
     return { data: mobileUser, error: null };
   }
 
   // Then fetch the associated contact
+  console.log('🔍 Fetching contact with ID:', mobileUser.contact_id);
   const { data: contact, error: contactError } = await supabase
     .from('contacts')
     .select('id, first_name, last_name, email, phone')
@@ -97,8 +110,19 @@ export async function fetchAppUser(id: string) {
     .single();
 
   if (contactError) {
-    return { data: mobileUser, error: contactError };
+    console.error('❌ Error fetching contact:', {
+      error: contactError,
+      message: contactError.message,
+      details: contactError.details,
+      hint: contactError.hint,
+      code: contactError.code
+    });
+    // Return user without contact info rather than failing completely
+    console.log('⚠️ Returning user without contact info due to contact fetch error');
+    return { data: { ...mobileUser, contacts: null }, error: null };
   }
+
+  console.log('✅ Contact found:', { id: contact?.id, name: `${contact?.first_name} ${contact?.last_name}` });
 
   // Join the data manually
   const enrichedUser = {
@@ -106,6 +130,7 @@ export async function fetchAppUser(id: string) {
     contacts: contact || null
   };
 
+  console.log('✅ Returning enriched user data');
   return { data: enrichedUser, error: null };
 }
 

@@ -58,7 +58,8 @@ import {
 
 export default function AppUserDetailPage({ params }: { params: { id: string } }) {
   // Safe way to handle params that works with both current and future Next.js
-  const { id } = useNextParams(params)
+  const unwrappedParams = useNextParams(params)
+  const id = typeof unwrappedParams === 'string' ? unwrappedParams : unwrappedParams?.id as string
   
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -112,11 +113,16 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
           setDevices(data.devices || [])
         }
       } catch (err) {
-        console.error('Error loading mobile app user:', err)
+        console.error('Error loading mobile app user:', {
+          error: err,
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined,
+          details: err
+        })
         toast({
           variant: 'destructive',
           title: 'Error',
-          description: 'Failed to load mobile app user details'
+          description: `Failed to load mobile app user details: ${err instanceof Error ? err.message : 'Unknown error'}`
         })
       } finally {
         setLoading(false)
@@ -272,289 +278,347 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <Button variant="ghost" size="icon" asChild className="mr-4">
-            <Link href="/people/mobile-users">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? 'Edit Mobile App User' : 'Mobile App User Details'}
-          </h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+      {/* Floating Background Elements */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-40 -left-40 w-80 h-80 bg-gradient-to-br from-emerald-400/20 to-blue-400/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 right-40 w-80 h-80 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto p-6 space-y-8">
+        {/* Header */}
+        <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-6 shadow-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                asChild 
+                className="h-10 w-10 rounded-xl bg-white/50 hover:bg-white/70 border border-white/30 shadow-lg backdrop-blur-sm"
+              >
+                <Link href="/people/mobile-users">
+                  <ArrowLeft className="h-4 w-4" />
+                </Link>
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                  {isEditMode ? 'Edit Mobile App User' : 'Mobile App User Details'}
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  {appUser?.contacts 
+                    ? `${appUser.contacts.first_name || ''} ${appUser.contacts.last_name || ''}`.trim() || 'Unnamed User'
+                    : 'Loading user information...'
+                  }
+                </p>
+              </div>
+            </div>
+            
+            {!isEditMode && appUser && (
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline"
+                  onClick={() => router.push(`/people/mobile-users/${id}?edit=true`)}
+                  className="bg-white/60 hover:bg-white/80 border-white/30 backdrop-blur-sm shadow-lg"
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 text-blue-700 hover:from-blue-500/20 hover:to-blue-600/20 border-blue-200/50 backdrop-blur-sm shadow-lg"
+                  onClick={openPushDialog}
+                >
+                  <Bell className="mr-2 h-4 w-4" />
+                  Send Push Notification
+                </Button>
+                <Button
+                  variant="outline"
+                  className="bg-gradient-to-r from-red-500/10 to-red-600/10 text-red-700 hover:from-red-500/20 hover:to-red-600/20 border-red-200/50 backdrop-blur-sm shadow-lg"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
         
-        {!isEditMode && appUser && (
-          <div className="flex gap-2">
-            <Button 
-              variant="outline"
-              onClick={() => router.push(`/people/mobile-users/${id}?edit=true`)}
-            >
-              Edit
-            </Button>
-            <Button
-              variant="outline"
-              className="bg-blue-50 text-blue-700 hover:bg-blue-100"
-              onClick={openPushDialog}
-            >
-              <Bell className="mr-2 h-4 w-4" />
-              Send Push Notification
-            </Button>
-            <Button
-              variant="outline"
-              className="bg-red-50 text-red-700 hover:bg-red-100"
-              onClick={() => setShowDeleteDialog(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
+        {/* Main Content */}
+        {loading ? (
+          <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-12 shadow-xl">
+            <div className="flex justify-center items-center">
+              <div className="text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+                <p className="text-lg font-medium text-gray-700">Loading mobile app user...</p>
+                <p className="text-gray-500 mt-2">Please wait while we fetch the user details</p>
+              </div>
+            </div>
+          </div>
+        ) : appUser ? (
+          isEditMode ? (
+            // Edit Form
+            <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl shadow-xl">
+              <div className="p-6 border-b border-white/20">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                  Edit Mobile App User
+                </h2>
+                <p className="text-gray-600 mt-2">
+                  Update information about this mobile app user
+                </p>
+              </div>
+              <div className="p-6">
+                <form className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={status}
+                      onValueChange={setStatus}
+                      disabled={saving}
+                    >
+                      <SelectTrigger className="bg-white/50 border-white/30 backdrop-blur-sm">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Controls whether this user can use the mobile app. Inactive users cannot log in.
+                    </p>
+                  </div>
+                  
+                  <Separator className="bg-white/30" />
+                  
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-800">Devices</h3>
+                    <p className="text-sm text-muted-foreground">
+                      This user has {devices.length} registered device(s)
+                    </p>
+                    
+                    {devices.map((device, index) => (
+                      <div key={device.device_id} className="bg-white/30 backdrop-blur-sm border border-white/20 rounded-xl p-4 space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={`device-name-${index}`}>Device Name</Label>
+                          <Input
+                            id={`device-name-${index}`}
+                            value={device.device_name}
+                            onChange={(e) => updateDevice(index, 'device_name', e.target.value)}
+                            disabled={saving}
+                            className="bg-white/50 border-white/30 backdrop-blur-sm"
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`platform-${index}`}>Platform</Label>
+                            <Input
+                              id={`platform-${index}`}
+                              value={device.platform}
+                              onChange={(e) => updateDevice(index, 'platform', e.target.value)}
+                              disabled={saving}
+                              className="bg-white/50 border-white/30 backdrop-blur-sm"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`os-version-${index}`}>OS Version</Label>
+                            <Input
+                              id={`os-version-${index}`}
+                              value={device.os_version}
+                              onChange={(e) => updateDevice(index, 'os_version', e.target.value)}
+                              disabled={saving}
+                              className="bg-white/50 border-white/30 backdrop-blur-sm"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label htmlFor={`app-version-${index}`}>App Version</Label>
+                          <Input
+                            id={`app-version-${index}`}
+                            value={device.app_version}
+                            onChange={(e) => updateDevice(index, 'app_version', e.target.value)}
+                            disabled={saving}
+                            className="bg-white/50 border-white/30 backdrop-blur-sm"
+                          />
+                        </div>
+                        
+                        {device.last_used && (
+                          <div className="text-sm text-muted-foreground">
+                            Last used: {formatDate(device.last_used)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3 pt-6 border-t border-white/20">
+                    <Button
+                      variant="outline"
+                      onClick={() => router.push(`/people/mobile-users/${id}`)}
+                      disabled={saving}
+                      className="bg-white/60 hover:bg-white/80 border-white/30 backdrop-blur-sm shadow-lg"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="mr-2 h-4 w-4" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          ) : (
+            // View Mode
+            <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl shadow-xl">
+              <Tabs defaultValue="overview" className="p-6">
+                <TabsList className="bg-white/50 backdrop-blur-sm border border-white/30 shadow-lg">
+                  <TabsTrigger value="overview" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md">
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger value="devices" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md">
+                    Devices ({appUser.devices?.length || 0})
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="overview" className="mt-6">
+                  <div className="bg-white/30 backdrop-blur-sm border border-white/20 rounded-xl p-6 shadow-lg">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                        User Information
+                      </h3>
+                      {getStatusBadge(appUser.status)}
+                    </div>
+                    <p className="text-gray-600 mb-6">
+                      Registered on {formatDate(appUser.registered_at)}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Contact</h4>
+                        <div className="bg-white/50 backdrop-blur-sm border border-white/30 rounded-lg p-4">
+                          <p className="font-medium text-gray-900">
+                            {appUser.contacts 
+                              ? `${appUser.contacts.first_name || ''} ${appUser.contacts.last_name || ''}`.trim() || 'Unnamed Contact'
+                              : 'No Contact Linked'
+                            }
+                          </p>
+                          {appUser.contacts?.email && (
+                            <p className="text-sm text-gray-600 mt-1">{appUser.contacts.email}</p>
+                          )}
+                          {appUser.contacts?.phone && (
+                            <p className="text-sm text-gray-600">{appUser.contacts.phone}</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Last Active</h4>
+                        <div className="bg-white/50 backdrop-blur-sm border border-white/30 rounded-lg p-4">
+                          <p className="font-medium text-gray-900">{formatDate(appUser.last_active)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide">App Usage</h4>
+                        <div className="bg-white/50 backdrop-blur-sm border border-white/30 rounded-lg p-4">
+                          <p className="font-medium text-gray-900">
+                            {appUser.devices && appUser.devices.length > 0 
+                              ? `Used on ${appUser.devices.length} device(s)` 
+                              : 'No usage data available'
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="devices" className="mt-6 space-y-4">
+                  {appUser.devices && appUser.devices.length > 0 ? (
+                    appUser.devices.map((device, index) => (
+                      <div key={device.device_id || index} className="bg-white/30 backdrop-blur-sm border border-white/20 rounded-xl p-6 shadow-lg">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h4 className="text-lg font-semibold text-gray-900">
+                              {device.device_name || `Device ${index + 1}`}
+                            </h4>
+                            <p className="text-gray-600">
+                              {device.platform} {device.os_version}
+                            </p>
+                          </div>
+                          {device.push_token && (
+                            <Badge variant="outline" className="bg-green-100/80 text-green-800 border-green-200/50 backdrop-blur-sm">
+                              <CheckCircle className="mr-1 h-3 w-3" />
+                              Push Enabled
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <h5 className="text-sm font-medium text-gray-500">App Version</h5>
+                            <p className="text-gray-900">{device.app_version || 'Unknown'}</p>
+                          </div>
+                          
+                          {device.last_used && (
+                            <div className="space-y-1">
+                              <h5 className="text-sm font-medium text-gray-500">Last Used</h5>
+                              <p className="text-gray-900">{formatDate(device.last_used)}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-white/30 backdrop-blur-sm border border-white/20 rounded-xl p-12 text-center">
+                      <Smartphone className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No devices found</h3>
+                      <p className="text-gray-600">
+                        This user has not registered any devices yet.
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )
+        ) : (
+          <div className="backdrop-blur-xl bg-white/40 border border-white/20 rounded-2xl p-12 shadow-xl text-center">
+            <Smartphone className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Mobile app user not found</h3>
+            <p className="text-gray-600 mb-6">
+              The mobile app user you're looking for doesn't exist or has been deleted.
+            </p>
+            <Button asChild className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg">
+              <Link href="/people/mobile-users">
+                Back to Mobile App Users
+              </Link>
             </Button>
           </div>
         )}
       </div>
       
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading mobile app user...</span>
-        </div>
-      ) : appUser ? (
-        isEditMode ? (
-          // Edit Form
-          <Card>
-            <CardHeader>
-              <CardTitle>Edit Mobile App User</CardTitle>
-              <CardDescription>
-                Update information about this mobile app user
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={status}
-                    onValueChange={setStatus}
-                    disabled={saving}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-sm text-muted-foreground">
-                    Controls whether this user can use the mobile app. Inactive users cannot log in.
-                  </p>
-                </div>
-                
-                <Separator />
-                
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Devices</h3>
-                  <p className="text-sm text-muted-foreground">
-                    This user has {devices.length} registered device(s)
-                  </p>
-                  
-                  {devices.map((device, index) => (
-                    <div key={device.device_id} className="space-y-4 p-4 border rounded-md">
-                      <div className="space-y-2">
-                        <Label htmlFor={`device-name-${index}`}>Device Name</Label>
-                        <Input
-                          id={`device-name-${index}`}
-                          value={device.device_name}
-                          onChange={(e) => updateDevice(index, 'device_name', e.target.value)}
-                          disabled={saving}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor={`platform-${index}`}>Platform</Label>
-                          <Input
-                            id={`platform-${index}`}
-                            value={device.platform}
-                            onChange={(e) => updateDevice(index, 'platform', e.target.value)}
-                            disabled={saving}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`os-version-${index}`}>OS Version</Label>
-                          <Input
-                            id={`os-version-${index}`}
-                            value={device.os_version}
-                            onChange={(e) => updateDevice(index, 'os_version', e.target.value)}
-                            disabled={saving}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor={`app-version-${index}`}>App Version</Label>
-                        <Input
-                          id={`app-version-${index}`}
-                          value={device.app_version}
-                          onChange={(e) => updateDevice(index, 'app_version', e.target.value)}
-                          disabled={saving}
-                        />
-                      </div>
-                      
-                      {device.last_used && (
-                        <div className="text-sm text-muted-foreground">
-                          Last used: {formatDate(device.last_used)}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                
-                <div className="flex justify-end space-x-2 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => router.push(`/people/mobile-users/${id}`)}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSave}
-                    disabled={saving}
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        ) : (
-          // View Mode
-          <Tabs defaultValue="overview" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="devices">Devices ({appUser.devices?.length || 0})</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="overview" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>User Information</span>
-                    {getStatusBadge(appUser.status)}
-                  </CardTitle>
-                  <CardDescription>
-                    Registered on {formatDate(appUser.registered_at)}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-medium text-muted-foreground">Contact</h3>
-                    <p className="font-medium">
-                      {appUser.contacts 
-                        ? `${appUser.contacts.first_name || ''} ${appUser.contacts.last_name || ''}`.trim() || 'Unnamed Contact'
-                        : 'No Contact Linked'
-                      }
-                    </p>
-                    {appUser.contacts?.email && (
-                      <p className="text-sm">{appUser.contacts.email}</p>
-                    )}
-                    {appUser.contacts?.phone && (
-                      <p className="text-sm">{appUser.contacts.phone}</p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-medium text-muted-foreground">Last Active</h3>
-                    <p>{formatDate(appUser.last_active)}</p>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-medium text-muted-foreground">App Usage</h3>
-                    <p>
-                      {appUser.devices && appUser.devices.length > 0 
-                        ? `Used on ${appUser.devices.length} device(s)` 
-                        : 'No usage data available'
-                      }
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="devices" className="space-y-4">
-              {appUser.devices && appUser.devices.length > 0 ? (
-                appUser.devices.map((device, index) => (
-                  <Card key={device.device_id || index}>
-                    <CardHeader>
-                      <CardTitle>{device.device_name || `Device ${index + 1}`}</CardTitle>
-                      <CardDescription>
-                        {device.platform} {device.os_version}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-1">
-                        <h3 className="text-sm font-medium text-muted-foreground">App Version</h3>
-                        <p>{device.app_version || 'Unknown'}</p>
-                      </div>
-                      
-                      {device.last_used && (
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-medium text-muted-foreground">Last Used</h3>
-                          <p>{formatDate(device.last_used)}</p>
-                        </div>
-                      )}
-                      
-                      {device.push_token && (
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-medium text-muted-foreground">Push Notification</h3>
-                          <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">Enabled</Badge>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="rounded-md border border-dashed p-8 text-center">
-                  <h3 className="text-lg font-medium">No devices found</h3>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    This user has not registered any devices yet.
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        )
-      ) : (
-        <div className="rounded-md border border-dashed p-8 text-center">
-          <h3 className="text-lg font-medium">Mobile app user not found</h3>
-          <p className="text-sm text-muted-foreground mt-2">
-            The mobile app user you're looking for doesn't exist or has been deleted.
-          </p>
-          <Button asChild className="mt-4">
-            <Link href="/people/mobile-users">
-              Back to Mobile App Users
-            </Link>
-          </Button>
-        </div>
-      )}
-      
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="backdrop-blur-xl bg-white/90 border border-white/20">
           <DialogHeader>
-            <DialogTitle>Delete Mobile App User</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-semibold text-gray-900">Delete Mobile App User</DialogTitle>
+            <DialogDescription className="text-gray-600">
               Are you sure you want to delete this mobile app user? This will revoke their app access. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
@@ -563,6 +627,7 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
               variant="outline" 
               onClick={() => setShowDeleteDialog(false)}
               disabled={isDeleting}
+              className="bg-white/60 hover:bg-white/80 border-white/30 backdrop-blur-sm"
             >
               Cancel
             </Button>
@@ -570,6 +635,7 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
               variant="destructive"
               onClick={confirmDelete}
               disabled={isDeleting}
+              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
             >
               {isDeleting ? (
                 <div className="flex items-center">
@@ -586,10 +652,10 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
       
       {/* Push Notification Dialog */}
       <Dialog open={showPushDialog} onOpenChange={setShowPushDialog}>
-        <DialogContent>
+        <DialogContent className="backdrop-blur-xl bg-white/90 border border-white/20">
           <DialogHeader>
-            <DialogTitle>Send Push Notification</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-semibold text-gray-900">Send Push Notification</DialogTitle>
+            <DialogDescription className="text-gray-600">
               Send a push notification to this user's device(s).
             </DialogDescription>
           </DialogHeader>
@@ -602,6 +668,7 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
                 onChange={(e) => setPushTitle(e.target.value)}
                 placeholder="Notification Title"
                 disabled={isSendingPush}
+                className="bg-white/50 border-white/30 backdrop-blur-sm"
               />
             </div>
             <div className="space-y-2">
@@ -613,6 +680,7 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
                 placeholder="Notification message..."
                 rows={4}
                 disabled={isSendingPush}
+                className="bg-white/50 border-white/30 backdrop-blur-sm"
               />
             </div>
           </div>
@@ -621,12 +689,14 @@ export default function AppUserDetailPage({ params }: { params: { id: string } }
               variant="outline" 
               onClick={() => setShowPushDialog(false)}
               disabled={isSendingPush}
+              className="bg-white/60 hover:bg-white/80 border-white/30 backdrop-blur-sm"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSendPush}
               disabled={isSendingPush}
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white"
             >
               {isSendingPush ? (
                 <div className="flex items-center">

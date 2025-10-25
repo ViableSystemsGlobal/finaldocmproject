@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { Contact } from '@/lib/supabase'
 import * as XLSX from 'xlsx'
+import { handleContactCreationError, handleContactUpdateError, handleContactDeletionError } from '@/lib/errorHandling'
 
 // Get these from the environment
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -50,7 +51,7 @@ export async function createContact(data: Partial<Contact>): Promise<void> {
     
     if (error) {
       console.error('Error creating contact:', error);
-      throw new Error(`Failed to create contact: ${error.message || 'Unknown error'}`);
+      throw handleContactCreationError(error);
     }
     
     console.log('Contact created successfully:', result);
@@ -67,7 +68,7 @@ export async function updateContact(data: Partial<Contact>): Promise<void> {
     .update(data)
     .eq('id', data.id);
   
-  if (error) throw error;
+  if (error) throw handleContactUpdateError(error);
 }
 
 export async function deleteContact(id: string): Promise<void> {
@@ -76,12 +77,64 @@ export async function deleteContact(id: string): Promise<void> {
     .delete()
     .eq('id', id);
   
-  if (error) throw error;
+  if (error) throw handleContactDeletionError(error);
 }
 
 /**
  * Export contacts to an Excel file
  */
+/**
+ * Download a template Excel file for importing contacts
+ */
+export function downloadContactsTemplate(): void {
+  // Create template data with example row
+  const templateData = [
+    {
+      first_name: 'John',
+      last_name: 'Doe',
+      email: 'john.doe@example.com',
+      phone: '+1234567890',
+      lifecycle: 'soul',
+      date_of_birth: '1990-01-15',
+      location: 'Denver, CO',
+      occupation: 'Software Engineer'
+    }
+  ];
+  
+  // Create a worksheet
+  const worksheet = XLSX.utils.json_to_sheet(templateData);
+  
+  // Add column widths for better readability
+  worksheet['!cols'] = [
+    { wch: 15 }, // first_name
+    { wch: 15 }, // last_name
+    { wch: 30 }, // email
+    { wch: 15 }, // phone
+    { wch: 12 }, // lifecycle
+    { wch: 15 }, // date_of_birth
+    { wch: 20 }, // location
+    { wch: 20 }  // occupation
+  ];
+  
+  // Create a workbook
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Contacts Template');
+  
+  // Generate Excel file
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  
+  // Create download link
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `contacts_import_template.xlsx`;
+  link.click();
+  
+  // Clean up
+  URL.revokeObjectURL(url);
+}
+
 export async function exportContacts(): Promise<void> {
   try {
     // Fetch all contacts
@@ -122,9 +175,13 @@ export async function exportContacts(): Promise<void> {
 }
 
 /**
- * Import contacts from an Excel file
+ * Import contacts from an Excel file with duplicate detection
  */
-export async function importContacts(file: File): Promise<void> {
+export async function importContacts(file: File): Promise<{
+  imported: number;
+  duplicates: string[];
+  duplicatesFound: number;
+}> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -150,24 +207,83 @@ export async function importContacts(file: File): Promise<void> {
         
         const tenant_id = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'; // Default UUID
         
-        // Validate and prepare contacts
+        // Validate and prepare contacts with all current form fields
         const validContacts = contacts.map((contact: any) => ({
           first_name: contact.first_name || contact.firstName || '',
           last_name: contact.last_name || contact.lastName || '',
           email: contact.email || '',
           phone: contact.phone || '',
-          lifecycle: contact.lifecycle || 'lead',
+          lifecycle: contact.lifecycle || 'soul', // Default to 'soul' to match form
+          date_of_birth: contact.date_of_birth || contact.dateOfBirth || contact.dob || null,
+          location: contact.location || contact.city || contact.address || null,
+          occupation: contact.occupation || contact.job || contact.profession || null,
           tenant_id
         }));
-        
-        // Insert contacts in batches
-        const { error } = await supabase.from('contacts').insert(validContacts);
-        
-        if (error) {
-          throw new Error(`Failed to import contacts: ${error.message}`);
+
+        // Check for existing contacts to detect duplicates
+        const { data: existingContacts, error: fetchError } = await supabase
+          .from('contacts')
+          .select('email, phone, first_name, last_name');
+
+        if (fetchError) {
+          throw new Error(`Failed to check existing contacts: ${fetchError.message}`);
+        }
+
+        // Create sets for efficient lookup
+        const existingEmails = new Set(existingContacts?.map(c => c.email?.toLowerCase()).filter(Boolean) || []);
+        const existingPhones = new Set(existingContacts?.map(c => c.phone).filter(Boolean) || []);
+
+        // Separate new contacts from duplicates
+        const newContacts: typeof validContacts = [];
+        const duplicates: string[] = [];
+
+        for (const contact of validContacts) {
+          const email = contact.email?.toLowerCase();
+          const phone = contact.phone;
+          
+          let isDuplicate = false;
+          let duplicateReason = '';
+
+          // Check for email duplicates
+          if (email && existingEmails.has(email)) {
+            isDuplicate = true;
+            duplicateReason = `email: ${email}`;
+          }
+          // Check for phone duplicates (only if no email duplicate found)
+          else if (phone && existingPhones.has(phone)) {
+            isDuplicate = true;
+            duplicateReason = `phone: ${phone}`;
+          }
+
+          if (isDuplicate) {
+            const name = `${contact.first_name} ${contact.last_name}`.trim() || 'Unknown';
+            duplicates.push(`${name} (${duplicateReason})`);
+          } else {
+            newContacts.push(contact);
+            // Add to existing sets to prevent duplicates within the import file itself
+            if (email) existingEmails.add(email);
+            if (phone) existingPhones.add(phone);
+          }
         }
         
-        resolve();
+        // Insert only new contacts
+        let importedCount = 0;
+        if (newContacts.length > 0) {
+          const { error: insertError } = await supabase
+            .from('contacts')
+            .insert(newContacts);
+          
+          if (insertError) {
+            throw new Error(`Failed to import contacts: ${insertError.message}`);
+          }
+          importedCount = newContacts.length;
+        }
+        
+        resolve({
+          imported: importedCount,
+          duplicates: duplicates,
+          duplicatesFound: duplicates.length
+        });
       } catch (err) {
         console.error('Error importing contacts:', err);
         reject(err);
@@ -468,4 +584,84 @@ export function getContactsForLeaderSelection(searchQuery?: string) {
   }
   
   return query;
+}
+
+/**
+ * Simple fallback function to check basic contact dependencies
+ * This doesn't require a custom SQL function
+ */
+export async function checkBasicContactDependencies(contactId: string): Promise<{
+  canDelete: boolean;
+  dependencies: Array<{
+    category: string;
+    count: number;
+    details: string;
+  }>;
+}> {
+  const dependencies = [];
+
+  try {
+    // Check group memberships
+    const { data: groupMemberships, error: groupError } = await supabase
+      .from('group_memberships')
+      .select('group_id, role, groups:group_id(name, type)')
+      .eq('contact_id', contactId);
+
+    if (!groupError && groupMemberships && groupMemberships.length > 0) {
+      const groupNames = groupMemberships.map(gm => {
+        const group = gm.groups as any; // Type assertion for the relation
+        return `${group?.name || 'Unknown Group'} (${gm.role || 'Member'})`;
+      }).join(', ');
+      
+      dependencies.push({
+        category: 'Group Memberships',
+        count: groupMemberships.length,
+        details: groupNames
+      });
+    }
+
+    // Check if contact is a member
+    const { data: memberRecord, error: memberError } = await supabase
+      .from('members')
+      .select('contact_id')
+      .eq('contact_id', contactId);
+
+    if (!memberError && memberRecord && memberRecord.length > 0) {
+      dependencies.push({
+        category: 'Member Status',
+        count: 1,
+        details: 'Active member record'
+      });
+    }
+
+    // Check if contact leads any groups
+    const { data: ledGroups, error: leaderError } = await supabase
+      .from('groups')
+      .select('id, name, type')
+      .eq('leader_id', contactId);
+
+    if (!leaderError && ledGroups && ledGroups.length > 0) {
+      const groupNames = ledGroups.map(g => `${g.name} (${g.type})`).join(', ');
+      dependencies.push({
+        category: 'Groups Led',
+        count: ledGroups.length,
+        details: groupNames
+      });
+    }
+
+    return {
+      canDelete: dependencies.length === 0,
+      dependencies
+    };
+  } catch (error) {
+    console.error('Error in basic dependency check:', error);
+    return {
+      canDelete: false,
+      dependencies: [{
+        category: 'Error',
+        count: 1,
+        details: 'Unable to check dependencies due to an error'
+      }]
+    };
+  }
 } 
