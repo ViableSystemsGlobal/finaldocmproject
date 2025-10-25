@@ -57,25 +57,24 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
 WORKDIR /app/apps/admin
 RUN pnpm run build
 
-# Debug: List the build output to see where standalone files are
-RUN echo "=== Checking for standalone output ===" && \
-    ls -la /app/apps/admin/.next/ || echo ".next not found in apps/admin" && \
-    ls -la /app/.next/ || echo ".next not found in root" && \
-    find /app -name "standalone" -type d 2>/dev/null || echo "No standalone directory found"
-
-# Stage 3: Runner
+# Stage 3: Runner  
 FROM base AS runner
-WORKDIR /app
+WORKDIR /app/apps/admin
 
 # Don't run as root
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy built files from standalone output
-# Standalone puts files at workspace root
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/public ./apps/admin/public
+# Install pnpm for next start
+RUN npm install -g pnpm@latest
+
+# Copy node_modules and built files
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules /app/node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/next.config.ts ./next.config.ts
 
 USER nextjs
 
@@ -85,6 +84,6 @@ ENV PORT=3000
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 
-# Start the application
-CMD ["node", "apps/admin/server.js"]
+# Use next start instead of node server.js
+CMD ["pnpm", "start"]
 
