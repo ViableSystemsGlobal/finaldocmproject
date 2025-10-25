@@ -57,6 +57,12 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
 WORKDIR /app/apps/admin
 RUN pnpm run build
 
+# Debug: List the build output to see where standalone files are
+RUN echo "=== Checking for standalone output ===" && \
+    ls -la /app/apps/admin/.next/ || echo ".next not found in apps/admin" && \
+    ls -la /app/.next/ || echo ".next not found in root" && \
+    find /app -name "standalone" -type d 2>/dev/null || echo "No standalone directory found"
+
 # Stage 3: Runner
 FROM base AS runner
 WORKDIR /app
