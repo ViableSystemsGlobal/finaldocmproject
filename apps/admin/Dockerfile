@@ -1,62 +1,58 @@
-# Build stage
+# Multi-stage build for DOCM Church Admin
 FROM node:20-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
 
 # Install pnpm
 RUN npm install -g pnpm@latest
 
-# Copy package files
-COPY package.json pnpm-lock.yaml* ./
-COPY ../../pnpm-workspace.yaml ../../package.json /app/
+# Stage 1: Dependencies
+FROM base AS deps
+WORKDIR /app
+
+# Copy workspace configuration
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+
+# Copy app package.json
+COPY apps/admin/package.json ./apps/admin/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Builder stage
+# Stage 2: Builder
 FROM base AS builder
 WORKDIR /app
 
-# Install pnpm
-RUN npm install -g pnpm@latest
-
-# Copy dependencies
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps /app/apps/admin/node_modules ./apps/admin/node_modules
 
-# Set environment variable for build
-ENV NEXT_TELEMETRY_DISABLED 1
+# Copy source code
+COPY apps/admin ./apps/admin
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
 
 # Build the application
+WORKDIR /app/apps/admin
 RUN pnpm run build
 
-# Production image, copy all the files and run next
+# Stage 3: Runner
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-
+# Don't run as root
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy necessary files
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# Set permissions
-RUN chown -R nextjs:nodejs /app
+# Copy built files
+COPY --from=builder /app/apps/admin/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/admin/.next/static ./apps/admin/.next/static
 
 USER nextjs
 
 EXPOSE 3000
 
 ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
+ENV NODE_ENV production
 
-CMD ["node", "server.js"]
+# Start the application
+CMD ["node", "apps/admin/server.js"]
 
