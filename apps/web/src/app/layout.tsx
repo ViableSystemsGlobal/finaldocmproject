@@ -19,6 +19,18 @@ const jetbrainsMono = JetBrains_Mono({
 // Generate dynamic metadata
 export async function generateMetadata(): Promise<Metadata> {
   try {
+    // Check for environment variables before creating client
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      return {
+        title: "DOCM Church - Welcome Home",
+        description: "Join our church family and discover your purpose in Christ.",
+        icons: {
+          icon: '/icon',
+          apple: '/apple-icon',
+        },
+      }
+    }
+
     const supabase = createServerSupabaseClient()
     const { data: settings } = await supabase
       .from('tenant_settings')

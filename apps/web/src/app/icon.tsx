@@ -14,14 +14,25 @@ export const contentType = 'image/png'
 // Image generation
 export default async function Icon() {
   try {
-    const supabase = createServerSupabaseClient()
+    // Check for environment variables before creating client
+    let settings = null
+    let error = null
     
-    // Get the black logo URL from tenant settings
-    const { data: settings, error } = await supabase
-      .from('tenant_settings')
-      .select('logo_black_url, logo_url, name')
-      .limit(1)
-      .single()
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      try {
+        const supabase = createServerSupabaseClient()
+        // Get the black logo URL from tenant settings
+        const result = await supabase
+          .from('tenant_settings')
+          .select('logo_black_url, logo_url, name')
+          .limit(1)
+          .single()
+        settings = result.data
+        error = result.error
+      } catch (err) {
+        error = err
+      }
+    }
 
     console.log('🔧 Favicon: Tenant settings:', { 
       logo_black_url: settings?.logo_black_url,
