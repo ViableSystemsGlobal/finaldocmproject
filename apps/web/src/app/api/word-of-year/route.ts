@@ -3,10 +3,21 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    // Check for environment variables before creating client
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.log('🔄 WORD-OF-YEAR SOURCE: DEFAULT (Supabase not configured)')
+      return NextResponse.json({
+        success: true,
+        data: null,
+        message: 'No active Word of the Year (Supabase not configured)',
+        source: 'default'
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('🌟 Fetching active Word of the Year...');
 
