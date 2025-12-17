@@ -2,22 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
 
-// Create admin client with service role key
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
+// Lazy initialization of admin client to avoid build-time errors
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase configuration. NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.')
+  }
+  
+  return createClient(supabaseUrl, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
     }
-  }
-)
+  })
+}
 
 // GET method to fetch existing media items
 export async function GET() {
   try {
     console.log('=== Media Fetch from upload-media route ===')
+    
+    const supabaseAdmin = getSupabaseAdmin()
     
     // Fetch media items using admin client (bypasses RLS)
     const { data: mediaData, error: mediaError } = await supabaseAdmin
@@ -57,6 +64,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     console.log('=== Server-side media upload started ===')
+    
+    const supabaseAdmin = getSupabaseAdmin()
     
     const formData = await request.formData()
     const file = formData.get('file') as File
