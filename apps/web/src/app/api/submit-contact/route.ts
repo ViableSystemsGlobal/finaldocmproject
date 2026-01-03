@@ -1,20 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit, getClientIP, sanitizeString, isValidEmail } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - 3 submissions per minute per IP
+    const clientIP = getClientIP(request)
+    const rateLimitResult = rateLimit(`submit-contact-${clientIP}`, 3, 60000)
+    
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '3',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+          }
+        }
+      )
+    }
+
     const body = await request.json();
     
-    const { 
-      firstName, 
-      lastName, 
-      email, 
-      phone, 
-      dateOfBirth, 
-      location, 
-      occupation,
-      lifecycle
-    } = body;
+    // Sanitize all inputs
+    const firstName = sanitizeString(body.firstName || '', 100);
+    const lastName = sanitizeString(body.lastName || '', 100);
+    const email = (body.email || '').toLowerCase().trim();
+    const phone = sanitizeString(body.phone || '', 50);
+    const dateOfBirth = sanitizeString(body.dateOfBirth || '', 20);
+    const location = sanitizeString(body.location || '', 200);
+    const occupation = sanitizeString(body.occupation || '', 200);
+    const lifecycle = sanitizeString(body.lifecycle || '', 50);
 
     console.log('📝 Contact submission received:', { firstName, lastName, email });
 
@@ -27,8 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!isValidEmail(email)) {
       return NextResponse.json(
         { error: 'Invalid email address' },
         { status: 400 }

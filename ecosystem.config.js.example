@@ -1,0 +1,31 @@
+module.exports = {
+  apps: [
+    {
+      name: 'docm-cics-admin',
+      script: 'npm',
+      args: 'start',
+      cwd: '/root/docm-cics/apps/admin',
+      env: {
+        NODE_ENV: 'production',
+        PORT: '3000',
+        // NOTE: All sensitive values should come from environment variables
+        // Do NOT hardcode secrets in this file
+        // Use: pm2 start ecosystem.config.js --update-env
+        // Or set environment variables in your shell before starting
+      },
+      env_file: '.env.production' // Load from .env.production file
+    },
+    {
+      name: 'docm-cics-web',
+      script: 'npm',
+      args: 'start',
+      cwd: '/root/docm-cics/apps/web',
+      env: {
+        NODE_ENV: 'production',
+        PORT: '3001',
+        // NOTE: All sensitive values should come from environment variables
+      },
+      env_file: '.env.production'
+    }
+  ]
+};

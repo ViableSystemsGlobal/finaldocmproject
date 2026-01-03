@@ -1,20 +1,20 @@
 // Environment configuration for mobile app
-// Update these values based on your setup
+// ⚠️  SECURITY: Use environment variables, not hardcoded values
 
 export const config = {
   // Admin API URL - Update for production
   // For production, use your domain: https://admin.docmchurch.org
   // For development, use local IP: http://192.168.0.28:3003
-  ADMIN_API_URL: process.env.NODE_ENV === 'production' 
+  ADMIN_API_URL: process.env.EXPO_PUBLIC_ADMIN_API_URL || (process.env.NODE_ENV === 'production' 
     ? 'https://admin.docmchurch.org' 
-    : 'http://192.168.0.28:3003',
+    : 'http://192.168.0.28:3003'),
   
-  // Supabase configuration - Using actual credentials from .env
-  SUPABASE_URL: 'https://ufjfafcfkalaasdhgcbi.supabase.co',
-  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVmamZhZmNma2FsYWFzZGhnY2JpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc3MTQ3MTMsImV4cCI6MjA2MzI5MDcxM30.PzwQAeRUJDK8llZf0awLwgW6j-pAmZPOgz55USsOnyo',
+  // Supabase configuration - Load from environment variables
+  SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL || '',
+  SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
   
-  // Google Maps API Key
-  GOOGLE_MAPS_API_KEY: 'AIzaSyBzrY9ppQ9LhCbAKDU-L8cmUHaI23cAZkQ',
+  // Google Maps API Key - Load from environment variables
+  GOOGLE_MAPS_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '',
 }
 
 // Helper to get admin API URL with fallback

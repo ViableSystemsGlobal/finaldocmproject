@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { v4 as uuidv4 } from 'uuid'
+import { 
+  validateFileUpload, 
+  ALLOWED_FILE_TYPES, 
+  ALLOWED_EXTENSIONS, 
+  MAX_FILE_SIZES,
+  sanitizeFileName,
+  sanitizeString,
+  rateLimit,
+  getClientIP
+} from '@/lib/security'
+import { requireAPIKey } from '@/lib/auth-middleware'
 
 // Lazy initialization of admin client to avoid build-time errors
 function getSupabaseAdmin() {
@@ -20,8 +31,26 @@ function getSupabaseAdmin() {
 }
 
 // GET method to fetch existing media items
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Rate limiting
+    const clientIP = getClientIP(request)
+    const rateLimitResult = rateLimit(`media-get-${clientIP}`, 30, 60000) // 30 requests per minute
+    
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '30',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+          }
+        }
+      )
+    }
+
     console.log('=== Media Fetch from upload-media route ===')
     
     const supabaseAdmin = getSupabaseAdmin()
@@ -31,6 +60,7 @@ export async function GET() {
       .from('media_library')
       .select('*')
       .order('uploaded_at', { ascending: false })
+      .limit(100) // Limit results to prevent abuse
     
     if (mediaError) {
       console.error('Media fetch error:', mediaError)
@@ -47,6 +77,12 @@ export async function GET() {
       success: true, 
       data: mediaData,
       error: null
+    }, {
+      headers: {
+        'X-RateLimit-Limit': '30',
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+      }
     })
     
   } catch (error) {
@@ -63,23 +99,77 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // SECURITY: Require API key for uploads
+    const authError = requireAPIKey(request)
+    if (authError) {
+      return authError
+    }
+
+    // Rate limiting - stricter for uploads
+    const clientIP = getClientIP(request)
+    const rateLimitResult = rateLimit(`media-upload-${clientIP}`, 10, 60000) // 10 uploads per minute
+    
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many upload requests. Please try again later.' },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '10',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+          }
+        }
+      )
+    }
+
     console.log('=== Server-side media upload started ===')
     
     const supabaseAdmin = getSupabaseAdmin()
     
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const altText = formData.get('altText') as string || ''
     
-    // Get collection fields
-    const collectionName = formData.get('collectionName') as string || null
-    const collectionCategory = formData.get('collectionCategory') as string || null
-    const collectionDate = formData.get('collectionDate') as string || null
-    const description = formData.get('description') as string || null
-    
+    // SECURITY: Validate file upload
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
+
+    // Determine allowed types based on file category
+    const isImage = file.type.startsWith('image/')
+    const isVideo = file.type.startsWith('video/')
+    
+    let allowedTypes: string[]
+    let maxSize: number
+    let allowedExtensions: string[]
+    
+    if (isImage) {
+      allowedTypes = ALLOWED_FILE_TYPES.images
+      maxSize = MAX_FILE_SIZES.image
+      allowedExtensions = ALLOWED_EXTENSIONS.images
+    } else if (isVideo) {
+      allowedTypes = ALLOWED_FILE_TYPES.videos
+      maxSize = MAX_FILE_SIZES.video
+      allowedExtensions = ALLOWED_EXTENSIONS.videos
+    } else {
+      return NextResponse.json(
+        { error: 'File type not allowed. Only images and videos are accepted.' },
+        { status: 400 }
+      )
+    }
+
+    // Validate file
+    const validation = validateFileUpload(file, allowedTypes, maxSize, allowedExtensions)
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 })
+    }
+    
+    // Sanitize inputs
+    const altText = sanitizeString((formData.get('altText') as string) || '', 500)
+    const collectionName = formData.get('collectionName') ? sanitizeString(formData.get('collectionName') as string, 200) : null
+    const collectionCategory = formData.get('collectionCategory') ? sanitizeString(formData.get('collectionCategory') as string, 200) : null
+    const collectionDate = formData.get('collectionDate') as string || null
+    const description = formData.get('description') ? sanitizeString(formData.get('description') as string, 2000) : null
     
     console.log('File details:', {
       name: file.name,
@@ -87,8 +177,18 @@ export async function POST(request: NextRequest) {
       size: `${(file.size / 1024 / 1024).toFixed(2)}MB`
     })
     
-    // Generate unique filename
-    const fileExt = file.name.split('.').pop()
+    // SECURITY: Sanitize filename and generate unique name
+    const sanitizedName = sanitizeFileName(file.name)
+    const fileExt = sanitizedName.split('.').pop()?.toLowerCase() || 'bin'
+    
+    // Only allow safe extensions
+    if (!allowedExtensions.includes(`.${fileExt}`)) {
+      return NextResponse.json(
+        { error: `File extension .${fileExt} is not allowed` },
+        { status: 400 }
+      )
+    }
+    
     const fileName = `${uuidv4()}.${fileExt}`
     
     console.log('Generated filename:', fileName)
@@ -196,6 +296,12 @@ export async function POST(request: NextRequest) {
       success: true,
       data: mediaData,
       message: `${fileType === 'video' ? 'Video' : 'File'} uploaded successfully`
+    }, {
+      headers: {
+        'X-RateLimit-Limit': '10',
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+      }
     })
     
   } catch (error) {

@@ -1,23 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { rateLimit, getClientIP, sanitizeString, isValidEmail } from '@/lib/security'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting - 5 submissions per minute per IP
+    const clientIP = getClientIP(request)
+    const rateLimitResult = rateLimit(`contact-${clientIP}`, 5, 60000)
+    
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { 
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': '5',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+          }
+        }
+      )
+    }
+
     // Enhanced logging for debugging
     console.log('📧 Contact form submission started at:', new Date().toISOString())
     
     const body = await request.json()
     
-    const {
-      name,
-      email,
-      phone,
-      subject,
-      category,
-      message,
-      newsletter,
-      prayer
-    } = body
+    // Sanitize all inputs
+    const name = sanitizeString(body.name || '', 200)
+    const email = (body.email || '').toLowerCase().trim()
+    const phone = sanitizeString(body.phone || '', 50)
+    const subject = sanitizeString(body.subject || '', 200)
+    const category = sanitizeString(body.category || '', 100)
+    const message = sanitizeString(body.message || '', 5000)
+    const newsletter = body.newsletter === true || body.newsletter === 'true' || body.newsletter === 1
+    const prayer = body.prayer === true || body.prayer === 'true' || body.prayer === 1
 
     console.log('📧 Contact form submission received:', { 
       name, 
@@ -41,6 +59,14 @@ export async function POST(request: NextRequest) {
       console.error('❌ Missing required fields:', missingFields)
       return NextResponse.json(
         { error: `Missing required fields: ${missingFields.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // Validate email format
+    if (!isValidEmail(email)) {
+      return NextResponse.json(
+        { error: 'Invalid email address format' },
         { status: 400 }
       )
     }
